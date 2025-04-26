@@ -16,6 +16,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return location.pathname === path;
   };
 
+  const isAdminRoute = location.pathname.startsWith("/admin");
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -40,19 +42,34 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={isActive("/categories")}>
-                      <Link to="/categories" className="flex items-center gap-2">
-                        <DatabaseIcon size={18} />
-                        <span>Categories</span>
+                    <SidebarMenuButton asChild isActive={isActive("/admin")}>
+                      <Link to="/admin" className="flex items-center gap-2">
+                        <LayoutDashboardIcon size={18} />
+                        <span>Admin Dashboard</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={isActive("/settings")}>
-                      <Link to="/settings" className="flex items-center gap-2">
-                        <SettingsIcon size={18} />
-                        <span>Settings</span>
+                    <SidebarMenuButton asChild isActive={isActive("/admin/webhooks")}>
+                      <Link to="/admin/webhooks" className="flex items-center gap-2">
+                        <DatabaseIcon size={18} />
+                        <span>Manage Webhooks</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={isActive("/admin/categories")}>
+                      <Link to="/admin/categories" className="flex items-center gap-2">
+                        <DatabaseIcon size={18} />
+                        <span>Manage Categories</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -81,12 +98,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <SidebarTrigger />
             </div>
             <div>
-              <Button asChild size="sm" className="gap-1">
-                <Link to="/webhooks/new">
-                  <PlusIcon size={16} />
-                  <span>New Webhook</span>
-                </Link>
-              </Button>
+              {!isAdminRoute && (
+                <Button asChild size="sm" className="gap-1">
+                  <Link to="/webhooks/new">
+                    <PlusIcon size={16} />
+                    <span>New Webhook</span>
+                  </Link>
+                </Button>
+              )}
             </div>
           </header>
           <main className="flex-1 overflow-auto">

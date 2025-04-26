@@ -12,6 +12,9 @@ import EditCategoryPage from "@/pages/EditCategoryPage";
 import WebhookPage from "@/pages/WebhookPage";
 import WebhookFormPage from "@/pages/WebhookFormPage";
 import SettingsPage from "@/pages/SettingsPage";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import AdminWebhooks from "@/pages/admin/AdminWebhooks";
+import AdminCategories from "@/pages/admin/AdminCategories";
 
 const queryClient = new QueryClient();
 
@@ -24,11 +27,13 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/categories" element={<CategoriesPage />} />
-            <Route path="/categories/:id/edit" element={<EditCategoryPage />} />
-            <Route path="/webhooks/new" element={<WebhookFormPage />} />
             <Route path="/webhooks/:id" element={<WebhookPage />} />
-            <Route path="/webhooks/:id/edit" element={<WebhookFormPage />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/webhooks" element={<AdminWebhooks />} />
+            <Route path="/admin/webhooks/new" element={<WebhookFormPage />} />
+            <Route path="/admin/webhooks/:id/edit" element={<WebhookFormPage />} />
+            <Route path="/admin/categories" element={<AdminCategories />} />
+            <Route path="/admin/categories/:id/edit" element={<EditCategoryPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
