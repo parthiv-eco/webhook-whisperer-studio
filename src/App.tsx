@@ -15,6 +15,7 @@ import SettingsPage from "@/pages/SettingsPage";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminWebhooks from "@/pages/admin/AdminWebhooks";
 import AdminCategories from "@/pages/admin/AdminCategories";
+import AdminCategoryForm from "@/pages/admin/AdminCategoryForm";
 
 const queryClient = new QueryClient();
 
@@ -33,7 +34,10 @@ const App = () => (
             <Route path="/admin/webhooks/new" element={<WebhookFormPage />} />
             <Route path="/admin/webhooks/:id/edit" element={<WebhookFormPage />} />
             <Route path="/admin/categories" element={<AdminCategories />} />
+            <Route path="/admin/categories/new" element={<AdminCategoryForm />} />
             <Route path="/admin/categories/:id/edit" element={<EditCategoryPage />} />
+            <Route path="/categories" element={<CategoriesPage />} />
+            <Route path="/categories/new" element={<AdminCategoryForm />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
