@@ -3,7 +3,7 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { PlusIcon, LayoutDashboardIcon, SettingsIcon, DatabaseIcon, GitHubIcon } from "lucide-react";
+import { PlusIcon, LayoutDashboardIcon, SettingsIcon, DatabaseIcon, GithubIcon } from "lucide-react";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -33,7 +33,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <SidebarGroupContent>
                 <SidebarMenu>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild active={isActive("/")}>
+                    <SidebarMenuButton asChild isActive={isActive("/")}>
                       <Link to="/" className="flex items-center gap-2">
                         <LayoutDashboardIcon size={18} />
                         <span>Dashboard</span>
@@ -41,7 +41,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild active={isActive("/categories")}>
+                    <SidebarMenuButton asChild isActive={isActive("/categories")}>
                       <Link to="/categories" className="flex items-center gap-2">
                         <DatabaseIcon size={18} />
                         <span>Categories</span>
@@ -49,7 +49,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild active={isActive("/settings")}>
+                    <SidebarMenuButton asChild isActive={isActive("/settings")}>
                       <Link to="/settings" className="flex items-center gap-2">
                         <SettingsIcon size={18} />
                         <span>Settings</span>
@@ -65,7 +65,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <div className="text-xs text-muted-foreground">
                 <a href="https://github.com" target="_blank" rel="noopener noreferrer" 
                   className="flex items-center gap-1 hover:text-purple-500 transition-colors">
-                  <GitHubIcon size={14} />
+                  <GithubIcon size={14} />
                   <span>GitHub</span>
                 </a>
               </div>
