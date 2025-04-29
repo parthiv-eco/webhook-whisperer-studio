@@ -1,19 +1,19 @@
-
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
+import { useAuth } from "@/contexts/AuthContext"; 
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import WebhookCard from "@/components/WebhookCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Webhook } from "@/types";
-import { PlusCircleIcon, SearchIcon, DatabaseIcon } from "lucide-react";
-import { Link } from "react-router-dom";
+import { PlusCircle, Search, Database, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const DashboardPage = () => {
   const { categories, webhooks } = useApp();
+  const { isAdmin } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryParam = searchParams.get("category");
   
@@ -74,24 +74,41 @@ const DashboardPage = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button asChild variant="outline" size="sm">
-              <Link to="/categories" className="flex items-center gap-1">
-                <DatabaseIcon size={16} />
-                Manage Categories
-              </Link>
-            </Button>
-            <Button asChild size="sm">
-              <Link to="/webhooks/new" className="flex items-center gap-1">
-                <PlusCircleIcon size={16} />
-                New Webhook
-              </Link>
-            </Button>
+            {isAdmin ? (
+              <>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/admin" className="flex items-center gap-1">
+                    <Settings size={16} />
+                    Admin Dashboard
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/categories" className="flex items-center gap-1">
+                    <Database size={16} />
+                    Manage Categories
+                  </Link>
+                </Button>
+                <Button asChild size="sm">
+                  <Link to="/webhooks/new" className="flex items-center gap-1">
+                    <PlusCircle size={16} />
+                    New Webhook
+                  </Link>
+                </Button>
+              </>
+            ) : (
+              <Button asChild variant="outline" size="sm">
+                <Link to="/categories" className="flex items-center gap-1">
+                  <Database size={16} />
+                  View Categories
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
 
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
-            <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search webhooks..."
               className="pl-8"
@@ -129,7 +146,7 @@ const DashboardPage = () => {
           ) : (
             <div className="col-span-full flex flex-col items-center justify-center h-64 border border-dashed rounded-lg p-8">
               <div className="rounded-full bg-purple-100 p-3 mb-4">
-                <DatabaseIcon className="h-6 w-6 text-purple-700" />
+                <Database className="h-6 w-6 text-purple-700" />
               </div>
               <h3 className="font-medium text-lg mb-1">No webhooks found</h3>
               <p className="text-muted-foreground text-center mb-4">
@@ -137,9 +154,11 @@ const DashboardPage = () => {
                   ? "You haven't created any webhooks yet."
                   : "No webhooks match your search criteria."}
               </p>
-              <Button asChild>
-                <Link to="/webhooks/new">Create Webhook</Link>
-              </Button>
+              {isAdmin && (
+                <Button asChild>
+                  <Link to="/webhooks/new">Create Webhook</Link>
+                </Button>
+              )}
             </div>
           )}
         </div>

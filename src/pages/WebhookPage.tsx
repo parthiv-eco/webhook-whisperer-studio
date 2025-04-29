@@ -1,7 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
+import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import CodeEditor from "@/components/CodeEditor";
 import ResponseViewer from "@/components/ResponseViewer";
-import { ArrowLeftIcon, EditIcon, SendIcon } from "lucide-react";
+import { ArrowLeft, Edit, Send } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Webhook } from "@/types";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ const WebhookPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { webhooks, categories, executeWebhook, responses, clearResponse } = useApp();
+  const { isAdmin } = useAuth();
   
   const [webhook, setWebhook] = useState<Webhook | null>(null);
   const [category, setCategory] = useState<{ name: string; color?: string } | null>(null);
@@ -76,7 +77,7 @@ const WebhookPage = () => {
               className="h-8 w-8" 
               onClick={() => navigate(-1)}
             >
-              <ArrowLeftIcon size={16} />
+              <ArrowLeft size={16} />
             </Button>
             <div>
               <div className="flex items-center gap-2">
@@ -91,12 +92,14 @@ const WebhookPage = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button asChild variant="outline" className="flex items-center gap-1">
-              <Link to={`/webhooks/${id}/edit`}>
-                <EditIcon size={16} />
-                Edit
-              </Link>
-            </Button>
+            {isAdmin && (
+              <Button asChild variant="outline" className="flex items-center gap-1">
+                <Link to={`/webhooks/${id}/edit`}>
+                  <Edit size={16} />
+                  Edit
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
         
@@ -157,7 +160,7 @@ const WebhookPage = () => {
                     className="w-full flex items-center justify-center gap-1" 
                     disabled={isExecuting}
                   >
-                    <SendIcon size={16} />
+                    <Send size={16} />
                     {isExecuting ? "Executing..." : "Execute Webhook"}
                   </Button>
                 </div>

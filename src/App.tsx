@@ -36,16 +36,16 @@ const App = () => (
               <Route path="/webhooks/:id" element={<WebhookPage />} />
               
               {/* Protected Admin Routes */}
-              <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-              <Route path="/admin/webhooks" element={<ProtectedRoute><AdminWebhooks /></ProtectedRoute>} />
-              <Route path="/admin/webhooks/new" element={<ProtectedRoute><WebhookFormPage /></ProtectedRoute>} />
-              <Route path="/admin/webhooks/:id/edit" element={<ProtectedRoute><WebhookFormPage /></ProtectedRoute>} />
-              <Route path="/admin/categories" element={<ProtectedRoute><AdminCategories /></ProtectedRoute>} />
-              <Route path="/admin/categories/new" element={<ProtectedRoute><AdminCategoryForm /></ProtectedRoute>} />
-              <Route path="/admin/categories/:id/edit" element={<ProtectedRoute><EditCategoryPage /></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
+              <Route path="/admin/webhooks" element={<ProtectedRoute requireAdmin><AdminWebhooks /></ProtectedRoute>} />
+              <Route path="/admin/webhooks/new" element={<ProtectedRoute requireAdmin><WebhookFormPage /></ProtectedRoute>} />
+              <Route path="/admin/webhooks/:id/edit" element={<ProtectedRoute requireAdmin><WebhookFormPage /></ProtectedRoute>} />
+              <Route path="/admin/categories" element={<ProtectedRoute requireAdmin><AdminCategories /></ProtectedRoute>} />
+              <Route path="/admin/categories/new" element={<ProtectedRoute requireAdmin><AdminCategoryForm /></ProtectedRoute>} />
+              <Route path="/admin/categories/:id/edit" element={<ProtectedRoute requireAdmin><EditCategoryPage /></ProtectedRoute>} />
               
               <Route path="/categories" element={<CategoriesPage />} />
-              <Route path="/categories/new" element={<ProtectedRoute><AdminCategoryForm /></ProtectedRoute>} />
+              <Route path="/categories/new" element={<ProtectedRoute requireAdmin><AdminCategoryForm /></ProtectedRoute>} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

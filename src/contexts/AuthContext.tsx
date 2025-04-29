@@ -10,6 +10,7 @@ const ADMIN_PASSWORD = "admin123";
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
+  isAdmin: boolean; // Add admin role check
   login: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -19,13 +20,21 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false); // Add admin state
 
   // Check if user is already logged in
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const { data } = await supabase.auth.getSession();
-        setIsAuthenticated(!!data.session);
+        const session = data.session;
+        
+        setIsAuthenticated(!!session);
+        
+        // Check if user is admin (in this case, matching the admin email)
+        if (session?.user) {
+          setIsAdmin(session.user.email === ADMIN_EMAIL);
+        }
       } catch (error) {
         console.error("Auth check error:", error);
       } finally {
@@ -38,6 +47,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Subscribe to auth changes
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setIsAuthenticated(!!session);
+      
+      // Check admin status on auth changes
+      if (session?.user) {
+        setIsAdmin(session.user.email === ADMIN_EMAIL);
+      } else {
+        setIsAdmin(false);
+      }
     });
 
     return () => {
@@ -85,6 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value = {
     isAuthenticated,
     isLoading,
+    isAdmin, // Expose admin status
     login,
     logout,
   };

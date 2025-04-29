@@ -1,19 +1,20 @@
 
-import { useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { LockIcon } from "lucide-react";
+import { User } from "lucide-react";
 
 const LoginPage = () => {
-  const { login, isAuthenticated, isLoading } = useAuth();
+  const { login, isAuthenticated, isAdmin, isLoading } = useAuth();
   const navigate = useNavigate();
   
-  if (isAuthenticated) {
-    navigate("/admin");
-    return null;
-  }
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(isAdmin ? "/admin" : "/");
+    }
+  }, [isAuthenticated, isAdmin, navigate]);
   
   const handleLogin = async () => {
     await login();
@@ -24,7 +25,7 @@ const LoginPage = () => {
       <Card className="w-[350px]">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-            <LockIcon className="h-6 w-6 text-primary" />
+            <User className="h-6 w-6 text-primary" />
           </div>
           <CardTitle>Admin Login</CardTitle>
           <CardDescription>
