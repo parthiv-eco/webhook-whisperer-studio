@@ -1,10 +1,11 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { Webhook, WebhookCategory, WebhookResponse } from "@/types";
+import { Webhook, WebhookCategory, WebhookResponse, WebhookHeader, WebhookMethod } from "@/types";
 import { defaultCategories, defaultWebhooks } from "@/lib/data";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
+import { Json } from "@/integrations/supabase/types";
 
 interface AppContextType {
   categories: WebhookCategory[];
@@ -41,7 +42,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       
       if (categoriesData && categoriesData.length > 0) {
-        setCategories(categoriesData as WebhookCategory[]);
+        // Map the database fields to our type fields
+        const mappedCategories: WebhookCategory[] = categoriesData.map(cat => ({
+          id: cat.id,
+          name: cat.name,
+          description: cat.description || '',
+          color: cat.color || '#6E42CE',
+          createdAt: cat.created_at
+        }));
+        setCategories(mappedCategories);
       } else {
         // Use default categories if none exist in DB
         setCategories(defaultCategories);
@@ -49,7 +58,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (isAuthenticated) {
           for (const category of defaultCategories) {
             const { id, createdAt, ...categoryData } = category;
-            await supabase.from('categories').insert(categoryData);
+            await supabase.from('categories').insert({
+              name: categoryData.name,
+              description: categoryData.description,
+              color: categoryData.color
+            });
           }
         }
       }
@@ -64,22 +77,62 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       
       if (webhooksData && webhooksData.length > 0) {
-        setWebhooks(webhooksData.map(webhook => ({
-          ...webhook,
-          headers: webhook.headers || [],
-          examplePayloads: webhook.example_payloads || [],
-        })) as Webhook[]);
+        // Map the database fields to our type fields
+        const mappedWebhooks: Webhook[] = webhooksData.map(webhook => {
+          // Parse headers and example_payloads as needed
+          let parsedHeaders: WebhookHeader[] = [];
+          if (typeof webhook.headers === 'string') {
+            try {
+              parsedHeaders = JSON.parse(webhook.headers);
+            } catch (e) {
+              parsedHeaders = [];
+            }
+          } else if (Array.isArray(webhook.headers)) {
+            parsedHeaders = webhook.headers as unknown as WebhookHeader[];
+          }
+          
+          let parsedExamplePayloads: {name: string, payload: string}[] = [];
+          if (typeof webhook.example_payloads === 'string') {
+            try {
+              parsedExamplePayloads = JSON.parse(webhook.example_payloads);
+            } catch (e) {
+              parsedExamplePayloads = [];
+            }
+          } else if (Array.isArray(webhook.example_payloads)) {
+            parsedExamplePayloads = webhook.example_payloads as unknown as {name: string, payload: string}[];
+          }
+          
+          return {
+            id: webhook.id,
+            categoryId: webhook.category_id || '',
+            name: webhook.name,
+            description: webhook.description || '',
+            url: webhook.url,
+            method: webhook.method as WebhookMethod,
+            headers: parsedHeaders,
+            defaultPayload: webhook.default_payload || '',
+            examplePayloads: parsedExamplePayloads,
+            createdAt: webhook.created_at
+          };
+        });
+        
+        setWebhooks(mappedWebhooks);
       } else {
         // Use default webhooks if none exist in DB
         setWebhooks(defaultWebhooks);
         // If authenticated, add default webhooks to DB
         if (isAuthenticated) {
           for (const webhook of defaultWebhooks) {
-            const { id, createdAt, ...webhookData } = webhook;
+            const { id, createdAt, categoryId, defaultPayload, examplePayloads, headers, ...webhookData } = webhook;
             await supabase.from('webhooks').insert({
-              ...webhookData,
-              headers: JSON.stringify(webhookData.headers),
-              example_payloads: JSON.stringify(webhookData.examplePayloads)
+              category_id: categoryId,
+              name: webhookData.name,
+              description: webhookData.description,
+              url: webhookData.url,
+              method: webhookData.method,
+              headers: JSON.stringify(headers),
+              default_payload: defaultPayload,
+              example_payloads: JSON.stringify(examplePayloads)
             });
           }
         }
@@ -98,10 +151,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (responsesData && responsesData.length > 0) {
           const responseMap: Record<string, WebhookResponse> = {};
           responsesData.forEach(response => {
+            // Parse and convert headers to the expected format
+            const headers: Record<string, string> = {};
+            if (typeof response.headers === 'object' && response.headers !== null) {
+              Object.entries(response.headers as Record<string, any>).forEach(([key, value]) => {
+                headers[key] = String(value);
+              });
+            }
+            
             responseMap[response.webhook_id] = {
               status: response.status,
               statusText: response.status_text,
-              headers: response.headers,
+              headers,
               data: response.data,
               timestamp: response.timestamp,
             };
@@ -124,13 +185,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const { data, error } = await supabase
         .from('categories')
-        .insert(category)
+        .insert({
+          name: category.name,
+          description: category.description,
+          color: category.color
+        })
         .select('*')
         .single();
       
       if (error) throw error;
       
-      setCategories([...categories, data as WebhookCategory]);
+      const newCategory: WebhookCategory = {
+        id: data.id,
+        name: data.name,
+        description: data.description || '',
+        color: data.color || '#6E42CE',
+        createdAt: data.created_at
+      };
+      
+      setCategories([...categories, newCategory]);
       toast.success("Category created successfully");
     } catch (error: any) {
       console.error("Error adding category:", error);
@@ -193,9 +266,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           description: webhook.description,
           url: webhook.url,
           method: webhook.method,
-          headers: webhook.headers,
+          headers: JSON.stringify(webhook.headers),
           default_payload: webhook.defaultPayload,
-          example_payloads: webhook.examplePayloads
+          example_payloads: JSON.stringify(webhook.examplePayloads)
         })
         .select('*')
         .single();
@@ -204,14 +277,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       const newWebhook: Webhook = {
         id: data.id,
-        categoryId: data.category_id,
+        categoryId: data.category_id || '',
         name: data.name,
-        description: data.description,
+        description: data.description || '',
         url: data.url,
-        method: data.method,
-        headers: data.headers,
-        defaultPayload: data.default_payload,
-        examplePayloads: data.example_payloads,
+        method: data.method as WebhookMethod,
+        headers: webhook.headers, // Use the original headers as they're already in the correct format
+        defaultPayload: data.default_payload || '',
+        examplePayloads: webhook.examplePayloads, // Use the original examplePayloads as they're already in the correct format
         createdAt: data.created_at
       };
       
@@ -233,9 +306,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           description: webhook.description,
           url: webhook.url,
           method: webhook.method,
-          headers: webhook.headers,
+          headers: JSON.stringify(webhook.headers),
           default_payload: webhook.defaultPayload,
-          example_payloads: webhook.examplePayloads
+          example_payloads: JSON.stringify(webhook.examplePayloads)
         })
         .eq('id', webhook.id);
       
