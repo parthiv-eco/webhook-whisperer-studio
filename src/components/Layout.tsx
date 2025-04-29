@@ -1,121 +1,80 @@
 
-import React from "react";
+import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
-import { PlusIcon, LayoutDashboardIcon, SettingsIcon, DatabaseIcon, GithubIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { WebhookIcon, LayoutGridIcon, BookmarkIcon, SettingsIcon } from "lucide-react";
+import AdminHeader from "./layout/AdminHeader";
 
 interface LayoutProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children }) => {
+const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   
   const isActive = (path: string) => {
-    return location.pathname === path;
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
   };
 
-  const isAdminRoute = location.pathname.startsWith("/admin");
+  const navigationItems = [
+    {
+      name: "Dashboard",
+      href: "/",
+      icon: <LayoutGridIcon className="h-4 w-4" />,
+      active: isActive("/") || isActive("/webhooks"),
+    },
+    {
+      name: "Categories",
+      href: "/categories",
+      icon: <BookmarkIcon className="h-4 w-4" />,
+      active: isActive("/categories"),
+    },
+    {
+      name: "Admin",
+      href: "/admin",
+      icon: <WebhookIcon className="h-4 w-4" />,
+      active: isActive("/admin"),
+    },
+    {
+      name: "Settings",
+      href: "/settings",
+      icon: <SettingsIcon className="h-4 w-4" />,
+      active: isActive("/settings"),
+    },
+  ];
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <Sidebar>
-          <SidebarHeader className="flex items-center justify-between px-4 py-2">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-md bg-purple-700 flex items-center justify-center">
-                <DatabaseIcon size={18} className="text-white" />
-              </div>
-              <span className="font-semibold text-lg">Webhook Studio</span>
-            </div>
-          </SidebarHeader>
-          <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={isActive("/")}>
-                      <Link to="/" className="flex items-center gap-2">
-                        <LayoutDashboardIcon size={18} />
-                        <span>Dashboard</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={isActive("/admin")}>
-                      <Link to="/admin" className="flex items-center gap-2">
-                        <LayoutDashboardIcon size={18} />
-                        <span>Admin Dashboard</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={isActive("/admin/webhooks")}>
-                      <Link to="/admin/webhooks" className="flex items-center gap-2">
-                        <DatabaseIcon size={18} />
-                        <span>Manage Webhooks</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={isActive("/admin/categories")}>
-                      <Link to="/admin/categories" className="flex items-center gap-2">
-                        <DatabaseIcon size={18} />
-                        <span>Manage Categories</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </SidebarContent>
-          <SidebarFooter className="px-4 py-2 border-t">
-            <div className="flex items-center justify-between">
-              <div className="text-xs text-muted-foreground">
-                <a href="https://github.com" target="_blank" rel="noopener noreferrer" 
-                  className="flex items-center gap-1 hover:text-purple-500 transition-colors">
-                  <GithubIcon size={14} />
-                  <span>GitHub</span>
-                </a>
-              </div>
-              <div className="text-xs text-muted-foreground">
-                v1.0.0
-              </div>
-            </div>
-          </SidebarFooter>
-        </Sidebar>
-        <div className="flex-1 flex flex-col">
-          <header className="border-b h-14 flex items-center px-4 justify-between">
-            <div className="flex items-center space-x-2">
-              <SidebarTrigger />
-            </div>
-            <div>
-              {!isAdminRoute && (
-                <Button asChild size="sm" className="gap-1">
-                  <Link to="/webhooks/new">
-                    <PlusIcon size={16} />
-                    <span>New Webhook</span>
-                  </Link>
-                </Button>
-              )}
-            </div>
-          </header>
-          <main className="flex-1 overflow-auto">
-            <div className="container py-6 md:py-8 max-w-7xl">
-              {children}
-            </div>
-          </main>
+    <div className="flex min-h-screen flex-col">
+      <header className="sticky top-0 z-50 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
+        <Link to="/" className="flex items-center gap-2 font-semibold">
+          <WebhookIcon className="h-6 w-6" />
+          <span>Webhook Manager</span>
+        </Link>
+        <nav className="ml-auto flex items-center gap-4 sm:gap-6">
+          <AdminHeader />
+        </nav>
+      </header>
+      <div className="grid flex-1 md:grid-cols-[220px_1fr]">
+        <div className="hidden border-r bg-muted/40 md:block">
+          <nav className="grid gap-2 p-4 text-sm">
+            {navigationItems.map((item) => (
+              <Link
+                key={item.href}
+                to={item.href}
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-3 py-2 text-muted-foreground hover:text-foreground",
+                  item.active && "bg-muted text-foreground"
+                )}
+              >
+                {item.icon}
+                {item.name}
+              </Link>
+            ))}
+          </nav>
         </div>
+        <main className="flex flex-col p-4 md:p-6">{children}</main>
       </div>
-    </SidebarProvider>
+    </div>
   );
 };
 

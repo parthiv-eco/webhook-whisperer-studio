@@ -9,6 +9,30 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      categories: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
           content: string | null
@@ -26,6 +50,91 @@ export type Database = {
           id?: number
         }
         Relationships: []
+      }
+      webhook_responses: {
+        Row: {
+          data: Json | null
+          headers: Json
+          id: string
+          status: number
+          status_text: string
+          timestamp: string
+          webhook_id: string
+        }
+        Insert: {
+          data?: Json | null
+          headers: Json
+          id?: string
+          status: number
+          status_text: string
+          timestamp?: string
+          webhook_id: string
+        }
+        Update: {
+          data?: Json | null
+          headers?: Json
+          id?: string
+          status?: number
+          status_text?: string
+          timestamp?: string
+          webhook_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_responses_webhook_id_fkey"
+            columns: ["webhook_id"]
+            isOneToOne: false
+            referencedRelation: "webhooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhooks: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          default_payload: string | null
+          description: string | null
+          example_payloads: Json
+          headers: Json
+          id: string
+          method: string
+          name: string
+          url: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          default_payload?: string | null
+          description?: string | null
+          example_payloads?: Json
+          headers?: Json
+          id?: string
+          method: string
+          name: string
+          url: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          default_payload?: string | null
+          description?: string | null
+          example_payloads?: Json
+          headers?: Json
+          id?: string
+          method?: string
+          name?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhooks_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
