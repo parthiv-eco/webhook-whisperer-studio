@@ -56,11 +56,19 @@ const WebhookFormPage = () => {
     }
   }, [isEditing, id, webhooks, categories, navigate]);
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim() || !url.trim() || !categoryId) {
+    if (!name.trim() || !url.trim()) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+    
+    // Ensure categoryId is set
+    const finalCategoryId = categoryId || (categories.length > 0 ? categories[0].id : '');
+    
+    if (!finalCategoryId) {
+      toast.error("Please select a category or create one first");
       return;
     }
     
@@ -69,24 +77,30 @@ const WebhookFormPage = () => {
       description,
       url,
       method,
-      categoryId,
+      categoryId: finalCategoryId,
       headers,
       defaultPayload,
       examplePayloads,
     };
     
-    if (isEditing && id) {
-      const webhook = webhooks.find((w) => w.id === id);
-      if (webhook) {
-        updateWebhook({
-          ...webhook,
-          ...webhookData,
-        });
-        navigate(`/webhooks/${id}`);
+    try {
+      if (isEditing && id) {
+        const webhook = webhooks.find((w) => w.id === id);
+        if (webhook) {
+          await updateWebhook({
+            ...webhook,
+            ...webhookData,
+          });
+          toast.success("Webhook updated successfully");
+          navigate(`/webhooks/${id}`);
+        }
+      } else {
+        await addWebhook(webhookData);
+        toast.success("Webhook created successfully");
+        navigate("/");
       }
-    } else {
-      const newWebhook = addWebhook(webhookData);
-      navigate("/");
+    } catch (error: any) {
+      toast.error(`Failed to ${isEditing ? "update" : "create"} webhook: ${error.message}`);
     }
   };
   
@@ -134,19 +148,20 @@ const WebhookFormPage = () => {
               
               <div className="space-y-2">
                 <Label htmlFor="category">Category *</Label>
-                <Select value={categoryId} onValueChange={(value) => setCategoryId(value)} required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {categories.length === 0 && (
+                {categories.length > 0 ? (
+                  <Select value={categoryId} onValueChange={(value) => setCategoryId(value)} required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
                   <p className="text-sm text-muted-foreground mt-2">
                     No categories found. Please create a category first.
                   </p>

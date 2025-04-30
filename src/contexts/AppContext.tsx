@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Webhook, WebhookCategory, WebhookResponse, WebhookHeader, WebhookMethod } from "@/types";
 import { defaultCategories, defaultWebhooks } from "@/lib/data";
@@ -6,6 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
 import { Json } from "@/integrations/supabase/types";
+import { v4 as uuidv4 } from "uuid";
 
 interface AppContextType {
   categories: WebhookCategory[];
@@ -52,13 +52,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }));
         setCategories(mappedCategories);
       } else {
-        // Use default categories if none exist in DB
-        setCategories(defaultCategories);
+        // Generate proper UUIDs for default categories
+        const categoriesWithUUIDs = defaultCategories.map(category => ({
+          ...category,
+          id: uuidv4()
+        }));
+        
+        setCategories(categoriesWithUUIDs);
+        
         // If authenticated, add default categories to DB
         if (isAuthenticated) {
-          for (const category of defaultCategories) {
+          for (const category of categoriesWithUUIDs) {
             const { id, createdAt, ...categoryData } = category;
             await supabase.from('categories').insert({
+              id: id, // Use the generated UUID
               name: categoryData.name,
               description: categoryData.description,
               color: categoryData.color
@@ -118,14 +125,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         
         setWebhooks(mappedWebhooks);
       } else {
-        // Use default webhooks if none exist in DB
-        setWebhooks(defaultWebhooks);
+        // Generate proper UUIDs for default webhooks and reference the UUIDs of categories
+        const categoriesMap = new Map(categories.map(c => [c.name, c.id]));
+        
+        const webhooksWithUUIDs = defaultWebhooks.map(webhook => {
+          // Find the category by name for default webhooks
+          const categoryName = categories.find(c => c.id === webhook.categoryId)?.name || '';
+          const categoryId = categoriesMap.get(categoryName) || categories[0]?.id || '';
+          
+          return {
+            ...webhook,
+            id: uuidv4(),
+            categoryId: categoryId // Use the UUID of the category
+          };
+        });
+        
+        setWebhooks(webhooksWithUUIDs);
+        
         // If authenticated, add default webhooks to DB
         if (isAuthenticated) {
-          for (const webhook of defaultWebhooks) {
+          for (const webhook of webhooksWithUUIDs) {
             const { id, createdAt, categoryId, defaultPayload, examplePayloads, headers, ...webhookData } = webhook;
             await supabase.from('webhooks').insert({
-              category_id: categoryId,
+              id: id, // Use the generated UUID
+              category_id: categoryId, // Use the UUID of the category
               name: webhookData.name,
               description: webhookData.description,
               url: webhookData.url,
@@ -258,6 +281,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addWebhook = async (webhook: Omit<Webhook, "id" | "createdAt">) => {
     try {
+      // Validate categoryId is a valid UUID
+      if (!webhook.categoryId || !isValidUUID(webhook.categoryId)) {
+        const defaultCategoryId = categories.length > 0 ? categories[0].id : uuidv4();
+        webhook.categoryId = defaultCategoryId;
+      }
+      
       const { data, error } = await supabase
         .from('webhooks')
         .insert({
@@ -298,6 +327,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateWebhook = async (webhook: Webhook) => {
     try {
+      // Validate categoryId is a valid UUID
+      if (!webhook.categoryId || !isValidUUID(webhook.categoryId)) {
+        const defaultCategoryId = categories.length > 0 ? categories[0].id : uuidv4();
+        webhook.categoryId = defaultCategoryId;
+      }
+      
       const { error } = await supabase
         .from('webhooks')
         .update({
@@ -427,4 +462,10 @@ export const useApp = () => {
     throw new Error("useApp must be used within an AppProvider");
   }
   return context;
+};
+
+// Helper function to validate UUIDs
+const isValidUUID = (id: string) => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
 };

@@ -11,15 +11,20 @@ import { toast } from "sonner";
 const AdminWebhooks = () => {
   const { webhooks, categories, deleteWebhook } = useApp();
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this webhook?")) {
-      deleteWebhook(id);
-      toast.success("Webhook deleted successfully");
+      try {
+        await deleteWebhook(id);
+        toast.success("Webhook deleted successfully");
+      } catch (error: any) {
+        toast.error(`Failed to delete webhook: ${error.message}`);
+      }
     }
   };
 
   const getCategoryName = (categoryId: string) => {
-    return categories.find(c => c.id === categoryId)?.name || "Uncategorized";
+    const category = categories.find(c => c.id === categoryId);
+    return category ? category.name : "Uncategorized";
   };
 
   return (
