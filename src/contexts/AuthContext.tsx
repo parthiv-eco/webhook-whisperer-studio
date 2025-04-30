@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -63,16 +64,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // For demo purposes, allow hardcoded admin login
+      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+        // Try to login with Supabase
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      if (error) {
-        throw error;
+        if (error) {
+          // If Supabase fails (user might not exist yet), try to sign up
+          const { error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+          });
+          
+          if (signUpError) {
+            throw signUpError;
+          }
+          
+          // If signup succeeds, try login again
+          const { error: retryError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          
+          if (retryError) {
+            throw retryError;
+          }
+        }
+        
+        setIsAdmin(true);
+        toast.success("Logged in successfully as admin");
+      } else {
+        // For non-admin logins
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) {
+          throw error;
+        }
+        
+        toast.success("Logged in successfully");
       }
-
-      toast.success("Logged in successfully");
     } catch (error: any) {
       console.error("Login error:", error);
       toast.error(`Login failed: ${error.message}`);
