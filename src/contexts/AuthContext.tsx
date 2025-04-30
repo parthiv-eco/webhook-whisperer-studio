@@ -10,7 +10,7 @@ const ADMIN_PASSWORD = "admin123";
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
-  isAdmin: boolean; // Add admin role check
+  isAdmin: boolean; 
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -20,7 +20,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isAdmin, setIsAdmin] = useState<boolean>(false); // Add admin state
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
   // Check if user is already logged in
   useEffect(() => {
@@ -64,53 +64,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Try to login with Supabase first
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // For demo admin user, bypass Supabase authentication
+      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+        // Create a mock session for the admin user
+        const mockSession = {
+          user: {
+            id: "admin-user-id",
+            email: ADMIN_EMAIL,
+            role: "admin"
+          }
+        };
+        
+        // Set authenticated state
+        setIsAuthenticated(true);
+        setIsAdmin(true);
+        
+        // Show success message
+        toast.success("Logged in successfully as admin");
+        return;
+      }
+      
+      // For non-admin users, use regular Supabase auth
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        // If login fails, check if it's the demo admin credentials
-        if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-          // Try to sign up with demo credentials
-          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: {
-                is_admin: true,
-              }
-            }
-          });
-          
-          if (signUpError) {
-            throw signUpError;
-          }
-          
-          if (signUpData.session) {
-            // Signup and auto-login successful
-            setIsAdmin(true);
-            toast.success("Registered and logged in successfully as admin");
-            return;
-          } else {
-            // If account was created but email confirmation is required
-            toast.info("Account created. Please check your email for confirmation.");
-            throw new Error("Account created. Email confirmation required.");
-          }
-        } else {
-          // Not admin credentials, just throw the original error
-          throw error;
-        }
-      } else {
-        // Successful login
-        if (data.user?.email === ADMIN_EMAIL) {
-          setIsAdmin(true);
-          toast.success("Logged in successfully as admin");
-        } else {
-          toast.success("Logged in successfully");
-        }
+        throw error;
       }
+      
+      toast.success("Logged in successfully");
     } catch (error: any) {
       console.error("Login error:", error);
       toast.error(`Login failed: ${error.message}`);
@@ -123,6 +107,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     setIsLoading(true);
     try {
+      // For admin user, just clear the state
+      if (isAdmin && !isAuthenticated) {
+        setIsAuthenticated(false);
+        setIsAdmin(false);
+        toast.success("Logged out successfully");
+        return;
+      }
+      
+      // For regular users, sign out from Supabase
       const { error } = await supabase.auth.signOut();
       if (error) {
         throw error;
