@@ -64,50 +64,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // For demo purposes, allow hardcoded admin login
-      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        // Try to login with Supabase
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      // Try to login with Supabase first
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        if (error) {
-          // If Supabase fails (user might not exist yet), try to sign up
-          const { error: signUpError } = await supabase.auth.signUp({
+      if (error) {
+        // If login fails, check if it's the demo admin credentials
+        if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+          // Try to sign up with demo credentials
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email,
             password,
+            options: {
+              data: {
+                is_admin: true,
+              }
+            }
           });
           
           if (signUpError) {
             throw signUpError;
           }
           
-          // If signup succeeds, try login again
-          const { error: retryError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-          
-          if (retryError) {
-            throw retryError;
+          if (signUpData.session) {
+            // Signup and auto-login successful
+            setIsAdmin(true);
+            toast.success("Registered and logged in successfully as admin");
+            return;
+          } else {
+            // If account was created but email confirmation is required
+            toast.info("Account created. Please check your email for confirmation.");
+            throw new Error("Account created. Email confirmation required.");
           }
-        }
-        
-        setIsAdmin(true);
-        toast.success("Logged in successfully as admin");
-      } else {
-        // For non-admin logins
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (error) {
+        } else {
+          // Not admin credentials, just throw the original error
           throw error;
         }
-        
-        toast.success("Logged in successfully");
+      } else {
+        // Successful login
+        if (data.user?.email === ADMIN_EMAIL) {
+          setIsAdmin(true);
+          toast.success("Logged in successfully as admin");
+        } else {
+          toast.success("Logged in successfully");
+        }
       }
     } catch (error: any) {
       console.error("Login error:", error);
@@ -137,7 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value = {
     isAuthenticated,
     isLoading,
-    isAdmin, // Expose admin status
+    isAdmin,
     login,
     logout,
   };

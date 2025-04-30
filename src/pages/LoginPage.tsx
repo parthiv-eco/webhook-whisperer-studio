@@ -15,6 +15,7 @@ const LoginPage = () => {
   const [email, setEmail] = useState("admin@example.com");
   const [password, setPassword] = useState("admin123");
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
     if (isAuthenticated) {
@@ -24,11 +25,12 @@ const LoginPage = () => {
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     try {
       await login(email, password);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
-      toast.error("Login failed. Please check your credentials.");
+      setError(error?.message || "Login failed. Please check your credentials.");
     }
   };
   
@@ -79,6 +81,12 @@ const LoginPage = () => {
                 </Button>
               </div>
             </div>
+            
+            {error && (
+              <div className="text-sm text-destructive p-2 bg-destructive/10 rounded-md">
+                {error}
+              </div>
+            )}
             
             <div className="text-center text-sm text-muted-foreground">
               <p>Demo credentials (pre-filled):</p>
