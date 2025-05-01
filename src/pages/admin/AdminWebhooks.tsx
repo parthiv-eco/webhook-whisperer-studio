@@ -1,15 +1,34 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApp } from "@/contexts/AppContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { PlusIcon, EditIcon, TrashIcon } from "lucide-react";
 import { toast } from "sonner";
 
 const AdminWebhooks = () => {
   const { webhooks, categories, deleteWebhook } = useApp();
+  const { isAuthenticated, login } = useAuth();
+  
+  useEffect(() => {
+    // Auto-login as admin for demo purposes if not already authenticated
+    const autoLogin = async () => {
+      if (!isAuthenticated) {
+        try {
+          // Using the hardcoded admin credentials from AuthContext
+          await login("admin@example.com", "admin123");
+          toast.success("Auto-logged in as admin for demo purposes");
+        } catch (error) {
+          console.error("Auto-login failed:", error);
+        }
+      }
+    };
+    
+    autoLogin();
+  }, [isAuthenticated, login]);
 
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this webhook?")) {
@@ -26,6 +45,20 @@ const AdminWebhooks = () => {
     const category = categories.find(c => c.id === categoryId);
     return category ? category.name : "Uncategorized";
   };
+
+  if (!isAuthenticated) {
+    return (
+      <Layout>
+        <div className="p-6 text-center">
+          <h2 className="text-2xl font-bold mb-4">Authentication Required</h2>
+          <p className="mb-4">You need to be logged in to access the admin dashboard.</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Logging in automatically as admin for demo purposes...
+          </p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
