@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,6 +16,7 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminWebhooks from "@/pages/admin/AdminWebhooks";
 import AdminCategories from "@/pages/admin/AdminCategories";
 import AdminCategoryForm from "@/pages/admin/AdminCategoryForm";
+import AdminWebhookForm from "@/pages/admin/AdminWebhookForm";
 import LoginPage from "@/pages/LoginPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
@@ -33,7 +33,6 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/webhooks/:id" element={<WebhookPage />} />
               
               {/* Protected Admin Routes */}
               <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
@@ -44,9 +43,10 @@ const App = () => (
               <Route path="/admin/categories/new" element={<ProtectedRoute requireAdmin><AdminCategoryForm /></ProtectedRoute>} />
               <Route path="/admin/categories/:id/edit" element={<ProtectedRoute requireAdmin><EditCategoryPage /></ProtectedRoute>} />
               
-              <Route path="/categories" element={<CategoriesPage />} />
-              <Route path="/categories/new" element={<ProtectedRoute requireAdmin><AdminCategoryForm /></ProtectedRoute>} />
-              <Route path="/settings" element={<SettingsPage />} />
+              {/* Protected User Routes */}
+              <Route path="/webhooks/:id" element={<WebhookPage />} />
+              <Route path="/categories" element={<ProtectedRoute><CategoriesPage /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

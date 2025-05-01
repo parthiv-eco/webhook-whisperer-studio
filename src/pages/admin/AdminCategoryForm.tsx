@@ -1,23 +1,41 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
+import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeftIcon, SaveIcon } from "lucide-react";
+import { ArrowLeftIcon, SaveIcon, ShieldIcon } from "lucide-react";
 import { toast } from "sonner";
 
 const AdminCategoryForm = () => {
   const navigate = useNavigate();
   const { addCategory } = useApp();
+  const { isAuthenticated, isAdmin, login } = useAuth();
   
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState("#6E42CE");
+  const [isLoading, setIsLoading] = useState(false);
   
-  const handleSubmit = (e: React.FormEvent) => {
+  // Auto-login effect for demo purposes
+  useEffect(() => {
+    const autoLogin = async () => {
+      if (!isAuthenticated) {
+        try {
+          await login("admin@example.com", "admin123");
+          toast.success("Auto-logged in as admin for demo purposes");
+        } catch (error) {
+          console.error("Auto-login failed:", error);
+        }
+      }
+    };
+    
+    autoLogin();
+  }, [isAuthenticated, login]);
+  
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!name.trim()) {
@@ -25,14 +43,55 @@ const AdminCategoryForm = () => {
       return;
     }
     
-    addCategory({
-      name,
-      description,
-      color,
-    });
+    setIsLoading(true);
     
-    navigate("/admin/categories");
+    try {
+      await addCategory({
+        name,
+        description,
+        color,
+      });
+      navigate("/admin/categories");
+    } catch (error: any) {
+      console.error("Category creation error:", error);
+      toast.error(`Failed to create category: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  // Show authentication loading state
+  if (!isAuthenticated) {
+    return (
+      <Layout>
+        <div className="p-6 text-center">
+          <h2 className="text-2xl font-bold mb-4">Authentication Required</h2>
+          <p className="mb-4">You need to be logged in to create categories.</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Logging in automatically as admin for demo purposes...
+          </p>
+        </div>
+      </Layout>
+    );
+  }
+  
+  // Show admin check
+  if (isAuthenticated && !isAdmin) {
+    return (
+      <Layout>
+        <div className="p-6 text-center">
+          <div className="flex justify-center mb-6">
+            <ShieldIcon size={64} className="text-muted-foreground" />
+          </div>
+          <h2 className="text-2xl font-bold mb-4">Admin Access Required</h2>
+          <p className="mb-4">
+            You need admin privileges to create categories.
+          </p>
+          <Button onClick={() => navigate("/")}>Return to Dashboard</Button>
+        </div>
+      </Layout>
+    );
+  }
   
   return (
     <Layout>
@@ -52,7 +111,7 @@ const AdminCategoryForm = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid gap-6 max-w-xl">
             <div className="grid gap-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">Name *</Label>
               <Input
                 id="name"
                 value={name}
@@ -97,7 +156,7 @@ const AdminCategoryForm = () => {
             <Button variant="outline" type="button" onClick={() => navigate(-1)}>
               Cancel
             </Button>
-            <Button type="submit" className="gap-1">
+            <Button type="submit" className="gap-1" disabled={isLoading}>
               <SaveIcon size={16} />
               Create Category
             </Button>

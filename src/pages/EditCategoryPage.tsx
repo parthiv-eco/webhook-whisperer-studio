@@ -1,12 +1,12 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
+import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeftIcon, SaveIcon, TrashIcon } from "lucide-react";
+import { ArrowLeftIcon, SaveIcon, TrashIcon, ShieldIcon } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -15,12 +15,29 @@ const EditCategoryPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { categories, webhooks, updateCategory, deleteCategory } = useApp();
+  const { isAuthenticated, isAdmin, login } = useAuth();
   
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState("#6E42CE");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
+  // Auto-login effect for demo purposes
+  useEffect(() => {
+    const autoLogin = async () => {
+      if (!isAuthenticated) {
+        try {
+          await login("admin@example.com", "admin123");
+          toast.success("Auto-logged in as admin for demo purposes");
+        } catch (error) {
+          console.error("Auto-login failed:", error);
+        }
+      }
+    };
+    
+    autoLogin();
+  }, [isAuthenticated, login]);
+
   // Check if category exists and load data
   useEffect(() => {
     if (!id) return;
@@ -32,13 +49,13 @@ const EditCategoryPage = () => {
       setColor(category.color || "#6E42CE");
     } else {
       toast.error("Category not found");
-      navigate("/categories");
+      navigate("/admin/categories");
     }
   }, [id, categories, navigate]);
   
   const hasWebhooks = webhooks.some((webhook) => webhook.categoryId === id);
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!name.trim()) {
@@ -50,17 +67,21 @@ const EditCategoryPage = () => {
     
     const category = categories.find((c) => c.id === id);
     if (category) {
-      updateCategory({
-        ...category,
-        name,
-        description,
-        color,
-      });
-      navigate("/categories");
+      try {
+        await updateCategory({
+          ...category,
+          name,
+          description,
+          color,
+        });
+        navigate("/admin/categories");
+      } catch (error: any) {
+        toast.error(`Failed to update category: ${error.message}`);
+      }
     }
   };
   
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!id) return;
     
     if (hasWebhooks) {
@@ -68,9 +89,46 @@ const EditCategoryPage = () => {
       return;
     }
     
-    deleteCategory(id);
-    navigate("/categories");
+    try {
+      await deleteCategory(id);
+      navigate("/admin/categories");
+    } catch (error: any) {
+      toast.error(`Failed to delete category: ${error.message}`);
+    }
   };
+
+  // Show authentication loading state
+  if (!isAuthenticated) {
+    return (
+      <Layout>
+        <div className="p-6 text-center">
+          <h2 className="text-2xl font-bold mb-4">Authentication Required</h2>
+          <p className="mb-4">You need to be logged in to edit categories.</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Logging in automatically as admin for demo purposes...
+          </p>
+        </div>
+      </Layout>
+    );
+  }
+  
+  // Show admin check
+  if (isAuthenticated && !isAdmin) {
+    return (
+      <Layout>
+        <div className="p-6 text-center">
+          <div className="flex justify-center mb-6">
+            <ShieldIcon size={64} className="text-muted-foreground" />
+          </div>
+          <h2 className="text-2xl font-bold mb-4">Admin Access Required</h2>
+          <p className="mb-4">
+            You need admin privileges to edit categories.
+          </p>
+          <Button onClick={() => navigate("/")}>Return to Dashboard</Button>
+        </div>
+      </Layout>
+    );
+  }
   
   return (
     <Layout>
@@ -124,7 +182,7 @@ const EditCategoryPage = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid gap-6 max-w-xl">
             <div className="grid gap-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">Name *</Label>
               <Input
                 id="name"
                 value={name}

@@ -1,8 +1,8 @@
-
 import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -92,12 +92,16 @@ const AdminWebhooks = () => {
             <TableBody>
               {webhooks.map((webhook) => (
                 <TableRow key={webhook.id}>
-                  <TableCell>{webhook.name}</TableCell>
+                  <TableCell className="font-medium">{webhook.name}</TableCell>
                   <TableCell>{getCategoryName(webhook.categoryId)}</TableCell>
-                  <TableCell>{webhook.method}</TableCell>
-                  <TableCell className="font-mono text-sm">{webhook.url}</TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
+                    <Badge variant="outline">{webhook.method}</Badge>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {webhook.url}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2 justify-end">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -112,7 +116,7 @@ const AdminWebhooks = () => {
                         size="sm"
                         onClick={() => handleDelete(webhook.id)}
                       >
-                        <TrashIcon size={16} />
+                        <TrashIcon size={16} className="text-destructive" />
                       </Button>
                     </div>
                   </TableCell>

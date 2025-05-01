@@ -1,10 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Webhook, WebhookCategory, WebhookResponse, WebhookHeader, WebhookMethod } from "@/types";
-import { defaultCategories, defaultWebhooks } from "@/lib/data";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
-import { Json } from "@/integrations/supabase/types";
 import { v4 as uuidv4 } from "uuid";
 
 interface AppContextType {
@@ -41,38 +39,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         throw categoriesError;
       }
       
-      if (categoriesData && categoriesData.length > 0) {
-        // Map the database fields to our type fields
-        const mappedCategories: WebhookCategory[] = categoriesData.map(cat => ({
-          id: cat.id,
-          name: cat.name,
-          description: cat.description || '',
-          color: cat.color || '#6E42CE',
-          createdAt: cat.created_at
-        }));
-        setCategories(mappedCategories);
-      } else {
-        // Generate proper UUIDs for default categories
-        const categoriesWithUUIDs = defaultCategories.map(category => ({
-          ...category,
-          id: uuidv4()
-        }));
-        
-        setCategories(categoriesWithUUIDs);
-        
-        // If authenticated, add default categories to DB
-        if (isAuthenticated) {
-          for (const category of categoriesWithUUIDs) {
-            const { id, createdAt, ...categoryData } = category;
-            await supabase.from('categories').insert({
-              id: id, // Use the generated UUID
-              name: categoryData.name,
-              description: categoryData.description,
-              color: categoryData.color
-            });
-          }
-        }
-      }
+      // Map the database fields to our type fields
+      const mappedCategories: WebhookCategory[] = (categoriesData || []).map(cat => ({
+        id: cat.id,
+        name: cat.name,
+        description: cat.description || '',
+        color: cat.color || '#6E42CE',
+        createdAt: cat.created_at
+      }));
+      setCategories(mappedCategories);
       
       // Fetch webhooks
       const { data: webhooksData, error: webhooksError } = await supabase
@@ -83,98 +58,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         throw webhooksError;
       }
       
-      if (webhooksData && webhooksData.length > 0) {
-        // Map the database fields to our type fields
-        const mappedWebhooks: Webhook[] = webhooksData.map(webhook => {
-          // Parse headers and example_payloads as needed
-          let parsedHeaders: WebhookHeader[] = [];
-          if (typeof webhook.headers === 'string') {
-            try {
-              parsedHeaders = JSON.parse(webhook.headers);
-            } catch (e) {
-              parsedHeaders = [];
-            }
-          } else if (Array.isArray(webhook.headers)) {
-            parsedHeaders = webhook.headers as unknown as WebhookHeader[];
-          }
-          
-          let parsedExamplePayloads: {name: string, payload: string}[] = [];
-          if (typeof webhook.example_payloads === 'string') {
-            try {
-              parsedExamplePayloads = JSON.parse(webhook.example_payloads);
-            } catch (e) {
-              parsedExamplePayloads = [];
-            }
-          } else if (Array.isArray(webhook.example_payloads)) {
-            parsedExamplePayloads = webhook.example_payloads as unknown as {name: string, payload: string}[];
-          }
-          
-          return {
-            id: webhook.id,
-            categoryId: webhook.category_id || '',
-            name: webhook.name,
-            description: webhook.description || '',
-            url: webhook.url,
-            method: webhook.method as WebhookMethod,
-            headers: parsedHeaders,
-            defaultPayload: webhook.default_payload || '',
-            examplePayloads: parsedExamplePayloads,
-            createdAt: webhook.created_at
-          };
-        });
-        
-        setWebhooks(mappedWebhooks);
-      } else {
-        // Generate proper UUIDs for default webhooks and reference the UUIDs of categories
-        const categoriesMap = new Map(categories.map(c => [c.name, c.id]));
-        
-        const webhooksWithUUIDs = defaultWebhooks.map(webhook => {
-          // Find the category by name for default webhooks
-          const categoryName = categories.find(c => c.id === webhook.categoryId)?.name || '';
-          const categoryId = categoriesMap.get(categoryName) || categories[0]?.id || '';
-          
-          return {
-            ...webhook,
-            id: uuidv4(),
-            categoryId: categoryId // Use the UUID of the category
-          };
-        });
-        
-        setWebhooks(webhooksWithUUIDs);
-        
-        // If authenticated, add default webhooks to DB
-        if (isAuthenticated) {
-          for (const webhook of webhooksWithUUIDs) {
-            const { id, createdAt, categoryId, defaultPayload, examplePayloads, headers, ...webhookData } = webhook;
-            await supabase.from('webhooks').insert({
-              id: id, // Use the generated UUID
-              category_id: categoryId, // Use the UUID of the category
-              name: webhookData.name,
-              description: webhookData.description,
-              url: webhookData.url,
-              method: webhookData.method,
-              headers: JSON.stringify(headers),
-              default_payload: defaultPayload,
-              example_payloads: JSON.stringify(examplePayloads)
-            });
-          }
+      // Map webhooks data
+      const mappedWebhooks: Webhook[] = (webhooksData || []).map(webhook => {
+        let parsedHeaders: WebhookHeader[] = [];
+        try {
+          parsedHeaders = typeof webhook.headers === 'string' 
+            ? JSON.parse(webhook.headers) 
+            : webhook.headers as WebhookHeader[];
+        } catch (e) {
+          parsedHeaders = [{ key: "Content-Type", value: "application/json", enabled: true }];
         }
-      }
-      
-      // Fetch responses
+        
+        let parsedExamplePayloads: {name: string, payload: string}[] = [];
+        try {
+          parsedExamplePayloads = typeof webhook.example_payloads === 'string'
+            ? JSON.parse(webhook.example_payloads)
+            : webhook.example_payloads as {name: string, payload: string}[];
+        } catch (e) {
+          parsedExamplePayloads = [];
+        }
+
+        return {
+          id: webhook.id,
+          categoryId: webhook.category_id || '',
+          name: webhook.name,
+          description: webhook.description || '',
+          url: webhook.url,
+          method: webhook.method as WebhookMethod,
+          headers: parsedHeaders,
+          defaultPayload: webhook.default_payload || '',
+          examplePayloads: parsedExamplePayloads,
+          createdAt: webhook.created_at
+        };
+      });
+      setWebhooks(mappedWebhooks);
+
+      // Fetch responses if authenticated
       if (isAuthenticated) {
         const { data: responsesData, error: responsesError } = await supabase
           .from('webhook_responses')
           .select('*');
         
-        if (responsesError) {
-          throw responsesError;
-        }
+        if (responsesError) throw responsesError;
         
-        if (responsesData && responsesData.length > 0) {
+        if (responsesData) {
           const responseMap: Record<string, WebhookResponse> = {};
           responsesData.forEach(response => {
-            // Parse and convert headers to the expected format
             const headers: Record<string, string> = {};
             if (typeof response.headers === 'object' && response.headers !== null) {
               Object.entries(response.headers as Record<string, any>).forEach(([key, value]) => {

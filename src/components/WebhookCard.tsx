@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,18 +42,20 @@ const WebhookCard = ({ webhook, category }: WebhookCardProps) => {
         </div>
       </CardContent>
       <CardFooter className="pt-1 flex justify-between">
-        <Button asChild variant="outline" size="sm">
-          <Link to={`/webhooks/${webhook.id}/edit`} className="flex items-center gap-1">
-            <EditIcon size={14} />
-            Edit
-          </Link>
-        </Button>
-        <Button asChild size="sm" className="flex items-center gap-1">
-          <Link to={`/webhooks/${webhook.id}`}>
-            <SendIcon size={14} />
-            Execute
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/admin/webhooks/${webhook.id}/edit`} className="flex items-center gap-1">
+              <EditIcon size={14} />
+              Edit
+            </Link>
+          </Button>
+          <Button asChild size="sm">
+            <Link to={`/webhooks/${webhook.id}`} className="flex items-center gap-1">
+              <SendIcon size={14} />
+              Execute
+            </Link>
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   );

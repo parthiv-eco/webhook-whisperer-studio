@@ -1,14 +1,15 @@
-
 import React from "react";
 import { Link } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useApp } from "@/contexts/AppContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { BarChart3, FolderIcon, WebhookIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const AdminDashboard = () => {
   const { webhooks, categories } = useApp();
+  const { isAdmin } = useAuth();
 
   const stats = [
     {
@@ -27,9 +28,23 @@ const AdminDashboard = () => {
       icon: <FolderIcon className="h-5 w-5 text-indigo-500" />,
       link: "/admin/categories",
       linkText: "Manage categories",
-      addLink: "/categories/new",
+      addLink: "/admin/categories/new",
     }
   ];
+
+  if (!isAdmin) {
+    return (
+      <Layout>
+        <div className="p-6 text-center">
+          <h2 className="text-2xl font-bold mb-4">Admin Access Required</h2>
+          <p className="mb-4">You need admin privileges to access this page.</p>
+          <Button asChild>
+            <Link to="/">Return to Dashboard</Link>
+          </Button>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

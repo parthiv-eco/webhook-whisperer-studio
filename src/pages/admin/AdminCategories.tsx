@@ -1,18 +1,37 @@
-
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApp } from "@/contexts/AppContext";
-import { PlusIcon, EditIcon, TrashIcon } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { PlusIcon, EditIcon, TrashIcon, ShieldIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const AdminCategories = () => {
   const { categories, deleteCategory, webhooks } = useApp();
+  const { isAuthenticated, isAdmin, login } = useAuth();
+  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
 
-  const handleDelete = (id: string) => {
+  // Auto-login effect for demo purposes
+  useEffect(() => {
+    const autoLogin = async () => {
+      if (!isAuthenticated) {
+        try {
+          await login("admin@example.com", "admin123");
+          toast.success("Auto-logged in as admin for demo purposes");
+        } catch (error) {
+          console.error("Auto-login failed:", error);
+        }
+      }
+    };
+    
+    autoLogin();
+  }, [isAuthenticated, login]);
+
+  const handleDelete = async (id: string) => {
     try {
       // Check if category has webhooks
       const hasWebhooks = webhooks.some(webhook => webhook.categoryId === id);
@@ -21,16 +40,50 @@ const AdminCategories = () => {
         return;
       }
       
-      deleteCategory(id);
+      await deleteCategory(id);
+      setCategoryToDelete(null);
       toast.success("Category deleted successfully");
-    } catch (error) {
-      toast.error("Cannot delete category with webhooks");
+    } catch (error: any) {
+      toast.error(`Failed to delete category: ${error.message}`);
     }
   };
 
   const getCategoryWebhooks = (categoryId: string) => {
     return webhooks.filter(webhook => webhook.categoryId === categoryId).length;
   };
+
+  // Show authentication loading state
+  if (!isAuthenticated) {
+    return (
+      <Layout>
+        <div className="p-6 text-center">
+          <h2 className="text-2xl font-bold mb-4">Authentication Required</h2>
+          <p className="mb-4">You need to be logged in to access the admin dashboard.</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Logging in automatically as admin for demo purposes...
+          </p>
+        </div>
+      </Layout>
+    );
+  }
+  
+  // Show admin check
+  if (isAuthenticated && !isAdmin) {
+    return (
+      <Layout>
+        <div className="p-6 text-center">
+          <div className="flex justify-center mb-6">
+            <ShieldIcon size={64} className="text-muted-foreground" />
+          </div>
+          <h2 className="text-2xl font-bold mb-4">Admin Access Required</h2>
+          <p className="mb-4">
+            You need admin privileges to manage categories.
+          </p>
+          <Button onClick={() => navigate("/")}>Return to Dashboard</Button>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -87,13 +140,37 @@ const AdminCategories = () => {
                           <EditIcon size={16} />
                         </Link>
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(category.id)}
-                      >
-                        <TrashIcon size={16} />
-                      </Button>
+                      <Dialog open={categoryToDelete === category.id} onOpenChange={(open) => !open && setCategoryToDelete(null)}>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setCategoryToDelete(category.id)}
+                          >
+                            <TrashIcon size={16} className="text-destructive" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Delete Category</DialogTitle>
+                            <DialogDescription>
+                              Are you sure you want to delete this category? This action cannot be undone.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => setCategoryToDelete(null)}>
+                              Cancel
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              onClick={() => category.id && handleDelete(category.id)}
+                              disabled={getCategoryWebhooks(category.id) > 0}
+                            >
+                              {getCategoryWebhooks(category.id) > 0 ? "Cannot Delete" : "Delete"}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
                     </div>
                   </TableCell>
                 </TableRow>

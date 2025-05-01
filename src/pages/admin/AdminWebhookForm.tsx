@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
@@ -14,13 +14,13 @@ import CodeEditor from "@/components/CodeEditor";
 import HeadersEditor from "@/components/HeadersEditor";
 import ExamplePayloads from "@/components/ExamplePayloads";
 import { toast } from "sonner";
-import { ArrowLeftIcon, SaveIcon, ShieldIcon } from "lucide-react";
+import { ArrowLeftIcon, SaveIcon } from "lucide-react";
 
-const WebhookFormPage = () => {
+const AdminWebhookForm = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { webhooks, categories, addWebhook, updateWebhook } = useApp();
-  const { isAuthenticated, isAdmin, login } = useAuth();
+  const { isAdmin } = useAuth();
   
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -32,30 +32,13 @@ const WebhookFormPage = () => {
   ]);
   const [defaultPayload, setDefaultPayload] = useState("{\n  \n}");
   const [examplePayloads, setExamplePayloads] = useState<Array<{ name: string; payload: string }>>([]);
-  
   const [isLoading, setIsLoading] = useState(false);
+  
   const isEditing = !!id;
-  
-  // Auto-login effect for demo purposes
-  useEffect(() => {
-    const autoLogin = async () => {
-      if (!isAuthenticated) {
-        try {
-          // Using the hardcoded admin credentials from AuthContext
-          await login("admin@example.com", "admin123");
-          toast.success("Auto-logged in as admin for demo purposes");
-        } catch (error) {
-          console.error("Auto-login failed:", error);
-        }
-      }
-    };
-    
-    autoLogin();
-  }, [isAuthenticated, login]);
-  
+
+  // Load existing webhook data if editing
   useEffect(() => {
     if (isEditing && id) {
-      // Load existing webhook data for editing
       const webhook = webhooks.find((w) => w.id === id);
       if (webhook) {
         setName(webhook.name);
@@ -71,10 +54,17 @@ const WebhookFormPage = () => {
         navigate("/admin/webhooks");
       }
     } else if (categories.length > 0) {
-      // Set default category for new webhook
       setCategoryId(categories[0].id);
     }
   }, [isEditing, id, webhooks, categories, navigate]);
+
+  // Redirect if not admin
+  useEffect(() => {
+    if (!isAdmin) {
+      toast.error("Admin access required");
+      navigate("/");
+    }
+  }, [isAdmin, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,22 +74,8 @@ const WebhookFormPage = () => {
       return;
     }
     
-    // Ensure categoryId is set
-    const finalCategoryId = categoryId || (categories.length > 0 ? categories[0].id : '');
-    
-    if (!finalCategoryId) {
-      toast.error("Please select a category or create one first");
-      return;
-    }
-    
-    // Ensure user is authenticated and admin
-    if (!isAuthenticated) {
-      toast.error("You must be logged in to create or edit webhooks");
-      return;
-    }
-    
-    if (!isAdmin) {
-      toast.error("You must have admin privileges to create or edit webhooks");
+    if (!categoryId) {
+      toast.error("Please select a category");
       return;
     }
     
@@ -110,7 +86,7 @@ const WebhookFormPage = () => {
       description,
       url,
       method,
-      categoryId: finalCategoryId,
+      categoryId,
       headers,
       defaultPayload,
       examplePayloads,
@@ -123,11 +99,11 @@ const WebhookFormPage = () => {
           ...webhookData,
           createdAt: webhooks.find(w => w.id === id)?.createdAt || new Date().toISOString()
         });
-        navigate("/admin/webhooks");
       } else {
         await addWebhook(webhookData);
-        navigate("/admin/webhooks");
       }
+      
+      navigate("/admin/webhooks");
     } catch (error: any) {
       console.error("Webhook operation error:", error);
       toast.error(`Failed to ${isEditing ? "update" : "create"} webhook: ${error.message}`);
@@ -135,40 +111,7 @@ const WebhookFormPage = () => {
       setIsLoading(false);
     }
   };
-  
-  // Show authentication loading state
-  if (!isAuthenticated) {
-    return (
-      <Layout>
-        <div className="p-6 text-center">
-          <h2 className="text-2xl font-bold mb-4">Authentication Required</h2>
-          <p className="mb-4">You need to be logged in to create or edit webhooks.</p>
-          <p className="text-sm text-muted-foreground mb-4">
-            Logging in automatically as admin for demo purposes...
-          </p>
-        </div>
-      </Layout>
-    );
-  }
-  
-  // Show admin check
-  if (isAuthenticated && !isAdmin) {
-    return (
-      <Layout>
-        <div className="p-6 text-center">
-          <div className="flex justify-center mb-6">
-            <ShieldIcon size={64} className="text-muted-foreground" />
-          </div>
-          <h2 className="text-2xl font-bold mb-4">Admin Access Required</h2>
-          <p className="mb-4">
-            You need admin privileges to create or edit webhooks.
-          </p>
-          <Button onClick={() => navigate("/")}>Return to Dashboard</Button>
-        </div>
-      </Layout>
-    );
-  }
-  
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -182,7 +125,7 @@ const WebhookFormPage = () => {
             <ArrowLeftIcon size={16} />
           </Button>
           <h1 className="text-2xl font-bold tracking-tight">
-            {isEditing ? "Edit Webhook" : "Create Webhook"}
+            {isEditing ? "Edit Webhook" : "Create New Webhook"}
           </h1>
         </div>
         
@@ -214,7 +157,7 @@ const WebhookFormPage = () => {
               <div className="space-y-2">
                 <Label htmlFor="category">Category *</Label>
                 {categories.length > 0 ? (
-                  <Select value={categoryId} onValueChange={(value) => setCategoryId(value)} required>
+                  <Select value={categoryId} onValueChange={setCategoryId} required>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
@@ -311,4 +254,4 @@ const WebhookFormPage = () => {
   );
 };
 
-export default WebhookFormPage;
+export default AdminWebhookForm;

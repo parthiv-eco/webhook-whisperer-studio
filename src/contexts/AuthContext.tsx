@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -26,17 +25,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // Check for persisted admin session
+        const adminSession = localStorage.getItem("adminSession");
+        if (adminSession) {
+          try {
+            const sessionData = JSON.parse(adminSession);
+            if (sessionData.email === ADMIN_EMAIL) {
+              setIsAuthenticated(true);
+              setIsAdmin(true);
+              setIsLoading(false);
+              return;
+            }
+          } catch (e) {
+            // Invalid session data, remove it
+            localStorage.removeItem("adminSession");
+          }
+        }
+
+        // Check Supabase session
         const { data } = await supabase.auth.getSession();
         const session = data.session;
         
-        setIsAuthenticated(!!session);
-        
-        // Check if user is admin (in this case, matching the admin email)
-        if (session?.user) {
+        if (session) {
+          setIsAuthenticated(true);
           setIsAdmin(session.user.email === ADMIN_EMAIL);
+          
+          // Store admin session if it's the admin user
+          if (session.user.email === ADMIN_EMAIL) {
+            localStorage.setItem("adminSession", JSON.stringify({
+              email: session.user.email,
+              timestamp: new Date().toISOString()
+            }));
+          }
+        } else {
+          setIsAuthenticated(false);
+          setIsAdmin(false);
+          localStorage.removeItem("adminSession");
         }
       } catch (error) {
         console.error("Auth check error:", error);
+        setIsAuthenticated(false);
+        setIsAdmin(false);
+        localStorage.removeItem("adminSession");
       } finally {
         setIsLoading(false);
       }
@@ -45,19 +75,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkAuth();
 
     // Subscribe to auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      setIsAuthenticated(!!session);
-      
-      // Check admin status on auth changes
-      if (session?.user) {
-        setIsAdmin(session.user.email === ADMIN_EMAIL);
-      } else {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN') {
+        setIsAuthenticated(true);
+        if (session?.user.email === ADMIN_EMAIL) {
+          setIsAdmin(true);
+          localStorage.setItem("adminSession", JSON.stringify({
+            email: session.user.email,
+            timestamp: new Date().toISOString()
+          }));
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setIsAuthenticated(false);
         setIsAdmin(false);
+        localStorage.removeItem("adminSession");
       }
     });
 
+    // Check auth status periodically
+    const interval = setInterval(checkAuth, 5 * 60 * 1000); // Check every 5 minutes
+
     return () => {
       authListener.subscription.unsubscribe();
+      clearInterval(interval);
     };
   }, []);
 
@@ -66,20 +106,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       // For demo admin user, bypass Supabase authentication
       if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        // Create a mock session for the admin user
-        const mockSession = {
-          user: {
-            id: "admin-user-id",
-            email: ADMIN_EMAIL,
-            role: "admin"
-          }
-        };
-        
+        // Persist admin session with more information
+        localStorage.setItem("adminSession", JSON.stringify({
+          email: ADMIN_EMAIL,
+          timestamp: new Date().toISOString()
+        }));
+
         // Set authenticated state
         setIsAuthenticated(true);
         setIsAdmin(true);
         
-        // Show success message
         toast.success("Logged in successfully as admin");
         return;
       }
@@ -107,19 +143,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     setIsLoading(true);
     try {
-      // For admin user, just clear the state
-      if (isAdmin && !isAuthenticated) {
-        setIsAuthenticated(false);
-        setIsAdmin(false);
-        toast.success("Logged out successfully");
-        return;
-      }
+      // Clear all auth state regardless of user type
+      localStorage.removeItem("adminSession");
+      setIsAuthenticated(false);
+      setIsAdmin(false);
       
-      // For regular users, sign out from Supabase
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        throw error;
-      }
+      // Always sign out from Supabase to ensure clean state
+      await supabase.auth.signOut();
+      
       toast.success("Logged out successfully");
     } catch (error: any) {
       console.error("Logout error:", error);

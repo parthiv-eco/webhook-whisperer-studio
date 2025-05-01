@@ -93,12 +93,22 @@ const WebhookPage = () => {
           </div>
           <div className="flex items-center gap-2">
             {isAdmin && (
-              <Button asChild variant="outline" className="flex items-center gap-1">
-                <Link to={`/webhooks/${id}/edit`}>
-                  <Edit size={16} />
-                  Edit
-                </Link>
-              </Button>
+              <>
+                <Button asChild variant="outline" className="flex items-center gap-1">
+                  <Link to={`/admin/webhooks/${id}/edit`}>
+                    <Edit size={16} />
+                    Edit
+                  </Link>
+                </Button>
+                <Button 
+                  onClick={handleExecute} 
+                  className="flex items-center gap-1" 
+                  disabled={isExecuting}
+                >
+                  <Send size={16} />
+                  {isExecuting ? "Executing..." : "Execute"}
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -155,14 +165,16 @@ const WebhookPage = () => {
                   examplePayloads={webhook.examplePayloads}
                 />
                 <div className="mt-4">
-                  <Button 
-                    onClick={handleExecute} 
-                    className="w-full flex items-center justify-center gap-1" 
-                    disabled={isExecuting}
-                  >
-                    <Send size={16} />
-                    {isExecuting ? "Executing..." : "Execute Webhook"}
-                  </Button>
+                  {isAdmin && (
+                    <Button 
+                      onClick={handleExecute} 
+                      className="w-full flex items-center justify-center gap-1" 
+                      disabled={isExecuting}
+                    >
+                      <Send size={16} />
+                      {isExecuting ? "Executing..." : "Execute Webhook"}
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

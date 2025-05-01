@@ -1,8 +1,8 @@
-
 import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { WebhookIcon, LayoutGridIcon, BookmarkIcon, SettingsIcon } from "lucide-react";
+import { WebhookIcon, LayoutGridIcon, BookmarkIcon, SettingsIcon, DatabaseIcon } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import AdminHeader from "./layout/AdminHeader";
 
 interface LayoutProps {
@@ -11,6 +11,7 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
+  const { isAdmin } = useAuth();
   
   const isActive = (path: string) => {
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
@@ -23,18 +24,33 @@ const Layout = ({ children }: LayoutProps) => {
       icon: <LayoutGridIcon className="h-4 w-4" />,
       active: isActive("/") || isActive("/webhooks"),
     },
-    {
-      name: "Categories",
-      href: "/categories",
-      icon: <BookmarkIcon className="h-4 w-4" />,
-      active: isActive("/categories"),
-    },
-    {
-      name: "Admin",
-      href: "/admin",
-      icon: <WebhookIcon className="h-4 w-4" />,
-      active: isActive("/admin"),
-    },
+    ...(isAdmin ? [
+      {
+        name: "Admin Dashboard",
+        href: "/admin",
+        icon: <SettingsIcon className="h-4 w-4" />,
+        active: isActive("/admin") && !isActive("/admin/webhooks") && !isActive("/admin/categories"),
+      },
+      {
+        name: "Manage Webhooks",
+        href: "/admin/webhooks",
+        icon: <WebhookIcon className="h-4 w-4" />,
+        active: isActive("/admin/webhooks"),
+      },
+      {
+        name: "Manage Categories",
+        href: "/admin/categories",
+        icon: <DatabaseIcon className="h-4 w-4" />,
+        active: isActive("/admin/categories"),
+      }
+    ] : [
+      {
+        name:  "Admin Login",
+        href: "/login",
+        icon: <BookmarkIcon className="h-4 w-4" />,
+        active: isActive("/categories"),
+      }
+    ]),
     {
       name: "Settings",
       href: "/settings",
