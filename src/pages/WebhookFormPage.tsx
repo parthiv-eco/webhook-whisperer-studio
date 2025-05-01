@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
+import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,7 @@ const WebhookFormPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { webhooks, categories, addWebhook, updateWebhook } = useApp();
+  const { isAuthenticated, login } = useAuth();
   
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -33,6 +35,23 @@ const WebhookFormPage = () => {
   const [examplePayloads, setExamplePayloads] = useState<Array<{ name: string; payload: string }>>([]);
   
   const isEditing = !!id;
+  
+  // Auto-login effect for demo purposes
+  useEffect(() => {
+    const autoLogin = async () => {
+      if (!isAuthenticated) {
+        try {
+          // Using the hardcoded admin credentials from AuthContext
+          await login("admin@example.com", "admin123");
+          toast.success("Auto-logged in as admin for demo purposes");
+        } catch (error) {
+          console.error("Auto-login failed:", error);
+        }
+      }
+    };
+    
+    autoLogin();
+  }, [isAuthenticated, login]);
   
   useEffect(() => {
     if (isEditing) {
@@ -72,6 +91,12 @@ const WebhookFormPage = () => {
       return;
     }
     
+    // Ensure user is authenticated before submitting
+    if (!isAuthenticated) {
+      toast.error("You must be logged in to create or edit webhooks");
+      return;
+    }
+    
     const webhookData = {
       name,
       description,
@@ -103,6 +128,21 @@ const WebhookFormPage = () => {
       toast.error(`Failed to ${isEditing ? "update" : "create"} webhook: ${error.message}`);
     }
   };
+  
+  // Show authentication loading state
+  if (!isAuthenticated) {
+    return (
+      <Layout>
+        <div className="p-6 text-center">
+          <h2 className="text-2xl font-bold mb-4">Authentication Required</h2>
+          <p className="mb-4">You need to be logged in to create or edit webhooks.</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Logging in automatically as admin for demo purposes...
+          </p>
+        </div>
+      </Layout>
+    );
+  }
   
   return (
     <Layout>
