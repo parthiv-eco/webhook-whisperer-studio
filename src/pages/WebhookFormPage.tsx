@@ -15,13 +15,13 @@ import CodeEditor from "@/components/CodeEditor";
 import HeadersEditor from "@/components/HeadersEditor";
 import ExamplePayloads from "@/components/ExamplePayloads";
 import { toast } from "sonner";
-import { ArrowLeftIcon, SaveIcon } from "lucide-react";
+import { ArrowLeftIcon, SaveIcon, ShieldIcon } from "lucide-react";
 
 const WebhookFormPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { webhooks, categories, addWebhook, updateWebhook } = useApp();
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated, isAdmin, login } = useAuth();
   
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -34,6 +34,7 @@ const WebhookFormPage = () => {
   const [defaultPayload, setDefaultPayload] = useState("{\n  \n}");
   const [examplePayloads, setExamplePayloads] = useState<Array<{ name: string; payload: string }>>([]);
   
+  const [isLoading, setIsLoading] = useState(false);
   const isEditing = !!id;
   
   // Auto-login effect for demo purposes
@@ -97,6 +98,14 @@ const WebhookFormPage = () => {
       return;
     }
     
+    // Check if user has admin privileges
+    if (!isAdmin) {
+      toast.error("You must have admin privileges to create or edit webhooks");
+      return;
+    }
+    
+    setIsLoading(true);
+    
     const webhookData = {
       name,
       description,
@@ -126,6 +135,9 @@ const WebhookFormPage = () => {
       }
     } catch (error: any) {
       toast.error(`Failed to ${isEditing ? "update" : "create"} webhook: ${error.message}`);
+      console.error("Webhook operation error:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -139,6 +151,24 @@ const WebhookFormPage = () => {
           <p className="text-sm text-muted-foreground mb-4">
             Logging in automatically as admin for demo purposes...
           </p>
+        </div>
+      </Layout>
+    );
+  }
+  
+  // Show admin check
+  if (isAuthenticated && !isAdmin) {
+    return (
+      <Layout>
+        <div className="p-6 text-center">
+          <div className="flex justify-center mb-6">
+            <ShieldIcon size={64} className="text-muted-foreground" />
+          </div>
+          <h2 className="text-2xl font-bold mb-4">Admin Access Required</h2>
+          <p className="mb-4">
+            You need admin privileges to create or edit webhooks.
+          </p>
+          <Button onClick={() => navigate("/")}>Return to Dashboard</Button>
         </div>
       </Layout>
     );
@@ -275,7 +305,7 @@ const WebhookFormPage = () => {
             <Button variant="outline" type="button" onClick={() => navigate(-1)}>
               Cancel
             </Button>
-            <Button type="submit" className="gap-1">
+            <Button type="submit" className="gap-1" disabled={isLoading}>
               <SaveIcon size={16} />
               {isEditing ? "Save Changes" : "Create Webhook"}
             </Button>
