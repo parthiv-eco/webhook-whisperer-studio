@@ -1,5 +1,5 @@
 
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,15 +10,21 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { LogOut, User, Settings, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 const AdminHeader = () => {
   const { isAuthenticated, isAdmin, logout } = useAuth();
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
+      console.log("Logout button clicked");
       await logout();
+      toast.success("Logged out successfully");
+      navigate("/login");
     } catch (error) {
       console.error("Logout error:", error);
+      toast.error("Failed to logout");
     }
   };
 

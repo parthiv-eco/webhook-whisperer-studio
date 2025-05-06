@@ -82,6 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Subscribe to auth changes
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event, session);
       if (event === 'SIGNED_IN') {
         setIsAuthenticated(true);
         if (session?.user.email === ADMIN_EMAIL) {
@@ -171,13 +172,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     setIsLoading(true);
     try {
+      console.log("Logout called");
       // Clear all auth state regardless of user type
       localStorage.removeItem("demoSession");
-      setIsAuthenticated(false);
-      setIsAdmin(false);
       
       // Always sign out from Supabase to ensure clean state
       await supabase.auth.signOut();
+      
+      // Update state AFTER Supabase signout (important for state consistency)
+      setIsAuthenticated(false);
+      setIsAdmin(false);
       
       toast.success("Logged out successfully");
     } catch (error: any) {

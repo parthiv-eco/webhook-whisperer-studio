@@ -107,16 +107,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         throw responsesError;
       }
 
-      // Map responses to our app's format
-      const formattedResponses: WebhookResponse[] = responsesData.map(response => ({
-        id: response.id,
-        webhookId: response.webhook_id,
-        status: response.status,
-        statusText: response.status_text,
-        headers: typeof response.headers === 'object' ? response.headers : {},
-        data: response.data,
-        timestamp: response.timestamp
-      }));
+      // Map responses to our app's format - fixing the type issues
+      const formattedResponses: WebhookResponse[] = responsesData.map(response => {
+        // Convert headers to Record<string, string> format
+        const stringHeaders: Record<string, string> = {};
+        if (typeof response.headers === 'object' && response.headers !== null) {
+          Object.entries(response.headers).forEach(([key, value]) => {
+            stringHeaders[key] = String(value);
+          });
+        }
+        
+        return {
+          id: response.id,
+          webhookId: response.webhook_id,
+          status: response.status,
+          statusText: response.status_text,
+          headers: stringHeaders,
+          data: response.data,
+          timestamp: response.timestamp
+        };
+      });
 
       setResponses(formattedResponses);
     } catch (error) {
@@ -133,9 +143,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         url: webhook.url,
         method: webhook.method,
         category_id: webhook.categoryId,
-        headers: webhook.headers,
+        headers: JSON.stringify(webhook.headers),
         default_payload: webhook.defaultPayload,
-        example_payloads: webhook.examplePayloads
+        example_payloads: JSON.stringify(webhook.examplePayloads)
       };
       
       // Insert webhook into Supabase
@@ -191,9 +201,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (webhook.url !== undefined) webhookData.url = webhook.url;
       if (webhook.method !== undefined) webhookData.method = webhook.method;
       if (webhook.categoryId !== undefined) webhookData.category_id = webhook.categoryId;
-      if (webhook.headers !== undefined) webhookData.headers = webhook.headers;
+      if (webhook.headers !== undefined) webhookData.headers = JSON.stringify(webhook.headers);
       if (webhook.defaultPayload !== undefined) webhookData.default_payload = webhook.defaultPayload;
-      if (webhook.examplePayloads !== undefined) webhookData.example_payloads = webhook.examplePayloads;
+      if (webhook.examplePayloads !== undefined) webhookData.example_payloads = JSON.stringify(webhook.examplePayloads);
 
       // Update webhook in Supabase
       const { error } = await supabase
