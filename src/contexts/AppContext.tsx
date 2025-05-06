@@ -1,502 +1,376 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Webhook, WebhookCategory, WebhookHeader, WebhookMethod, WebhookResponse } from "@/types";
-import { useAuth } from "./AuthContext";
-import { toast } from "sonner";
+
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { defaultCategories } from "@/lib/data";
-import { Json } from "@/integrations/supabase/types";
+import { WebhookCategory, Webhook, WebhookResponse, WebhookMethod, WebhookHeader } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+
+type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
 
 interface AppContextType {
   webhooks: Webhook[];
   categories: WebhookCategory[];
   responses: WebhookResponse[];
-  createWebhook: (webhook: Omit<Webhook, "id" | "createdAt">) => Promise<Webhook>;
-  updateWebhook: (id: string, webhook: Partial<Webhook>) => Promise<Webhook>;
   deleteWebhook: (id: string) => Promise<void>;
-  createCategory: (category: Omit<WebhookCategory, "id" | "createdAt">) => Promise<WebhookCategory>;
-  updateCategory: (id: string, category: Partial<WebhookCategory>) => Promise<WebhookCategory>;
   deleteCategory: (id: string) => Promise<void>;
-  executeWebhook: (webhook: Webhook, payload: string) => Promise<void>;
-  clearResponse: (webhookId: string) => void;
-  isLoading: boolean;
-  error: Error | null;
-  refetchData: () => Promise<void>;
+  addWebhook: (webhook: Omit<Webhook, "id" | "createdAt">) => Promise<Webhook>;
+  updateWebhook: (id: string, webhook: Partial<Omit<Webhook, "id" | "createdAt">>) => Promise<void>;
+  addCategory: (category: Omit<WebhookCategory, "id" | "createdAt">) => Promise<WebhookCategory>;
+  updateCategory: (id: string, category: Partial<Omit<WebhookCategory, "id" | "createdAt">>) => Promise<void>;
+  executeWebhook: (webhookId: string, payload?: string) => Promise<void>;
+  clearResponse: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  const { isAuthenticated } = useAuth();
+export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [categories, setCategories] = useState<WebhookCategory[]>([]);
   const [responses, setResponses] = useState<WebhookResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const { isAuthenticated } = useAuth();
 
+  // Fetch data from Supabase when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchData();
+    }
+  }, [isAuthenticated]);
+
+  // Fetch all data from Supabase
   const fetchData = async () => {
-    if (!isAuthenticated) return;
-    
-    setIsLoading(true);
-    setError(null);
-    
     try {
       // Fetch categories
       const { data: categoriesData, error: categoriesError } = await supabase
         .from("categories")
-        .select("*")
-        .order("name");
+        .select("*");
 
-      if (categoriesError) throw new Error(`Error fetching categories: ${categoriesError.message}`);
-      
-      // If no categories exist, create default ones
-      if (categoriesData && categoriesData.length === 0) {
-        const { data: defaultCategoriesData, error: defaultCategoriesError } = await supabase
-          .from("categories")
-          .insert(defaultCategories)
-          .select();
-          
-        if (defaultCategoriesError) throw new Error(`Error creating default categories: ${defaultCategoriesError.message}`);
-        
-        // Transform the data to match our app's schema
-        const transformedCategories: WebhookCategory[] = (defaultCategoriesData || []).map(cat => ({
-          id: cat.id,
-          name: cat.name,
-          description: cat.description || "",
-          color: cat.color || "#6E42CE",
-          createdAt: cat.created_at
-        }));
-        
-        setCategories(transformedCategories);
-      } else {
-        // Transform the data to match our app's schema
-        const transformedCategories: WebhookCategory[] = (categoriesData || []).map(cat => ({
-          id: cat.id,
-          name: cat.name,
-          description: cat.description || "",
-          color: cat.color || "#6E42CE",
-          createdAt: cat.created_at
-        }));
-        
-        setCategories(transformedCategories);
+      if (categoriesError) {
+        throw categoriesError;
       }
+
+      // Map categories to our app's format
+      const formattedCategories: WebhookCategory[] = categoriesData.map(cat => ({
+        id: cat.id,
+        name: cat.name,
+        description: cat.description,
+        color: cat.color || '#6E42CE',
+        createdAt: cat.created_at
+      }));
+
+      setCategories(formattedCategories);
 
       // Fetch webhooks
       const { data: webhooksData, error: webhooksError } = await supabase
         .from("webhooks")
-        .select("*")
-        .order("created_at", { ascending: false });
+        .select("*");
 
-      if (webhooksError) throw new Error(`Error fetching webhooks: ${webhooksError.message}`);
-      
-      // Transform webhook data to match our app's schema
-      const transformedWebhooks: Webhook[] = (webhooksData || []).map(webhook => ({
-        id: webhook.id,
-        name: webhook.name,
-        description: webhook.description || "",
-        url: webhook.url,
-        method: webhook.method as WebhookMethod, // Cast to ensure it fits the WebhookMethod type
-        categoryId: webhook.category_id || "",
-        headers: Array.isArray(webhook.headers) 
-          ? webhook.headers as WebhookHeader[] 
-          : [{ key: "Content-Type", value: "application/json", enabled: true }],
-        defaultPayload: webhook.default_payload || "",
-        examplePayloads: Array.isArray(webhook.example_payloads) 
-          ? webhook.example_payloads as Array<{ name: string; payload: string }> 
+      if (webhooksError) {
+        throw webhooksError;
+      }
+
+      // Map webhooks to our app's format
+      const formattedWebhooks: Webhook[] = webhooksData.map(hook => ({
+        id: hook.id,
+        name: hook.name,
+        description: hook.description,
+        url: hook.url,
+        method: hook.method as WebhookMethod,
+        categoryId: hook.category_id,
+        headers: Array.isArray(hook.headers) 
+          ? hook.headers.map((header: any) => ({
+              key: header.key || '',
+              value: header.value || '',
+              enabled: header.enabled !== false
+            }))
           : [],
-        createdAt: webhook.created_at
+        defaultPayload: hook.default_payload || '',
+        examplePayloads: Array.isArray(hook.example_payloads) 
+          ? hook.example_payloads.map((payload: any) => ({
+              name: payload.name || '',
+              payload: payload.payload || ''
+            }))
+          : [],
+        createdAt: hook.created_at
       }));
-      
-      setWebhooks(transformedWebhooks);
 
-      // Fetch webhook responses
+      setWebhooks(formattedWebhooks);
+
+      // Fetch responses
       const { data: responsesData, error: responsesError } = await supabase
         .from("webhook_responses")
         .select("*")
-        .order("timestamp", { ascending: false });
+        .order("timestamp", { ascending: false })
+        .limit(10);
 
-      if (responsesError) throw new Error(`Error fetching webhook responses: ${responsesError.message}`);
-      
-      // Transform response data to match our app's schema
-      const transformedResponses: WebhookResponse[] = (responsesData || []).map(response => ({
+      if (responsesError) {
+        throw responsesError;
+      }
+
+      // Map responses to our app's format
+      const formattedResponses: WebhookResponse[] = responsesData.map(response => ({
         id: response.id,
         webhookId: response.webhook_id,
         status: response.status,
         statusText: response.status_text,
-        headers: typeof response.headers === 'object' ? response.headers as Record<string, string> : {},
-        data: response.data || null,
+        headers: typeof response.headers === 'object' ? response.headers : {},
+        data: response.data,
         timestamp: response.timestamp
       }));
-      
-      setResponses(transformedResponses);
-      
-    } catch (err: any) {
-      console.error("Error fetching data:", err);
-      setError(err);
-      toast.error(`Failed to load data: ${err.message}`);
-    } finally {
-      setIsLoading(false);
+
+      setResponses(formattedResponses);
+    } catch (error) {
+      console.error("Error fetching data:", error);
     }
   };
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchData();
-    } else {
-      // Reset data when not authenticated
-      setWebhooks([]);
-      setCategories([]);
-      setResponses([]);
-      setIsLoading(false);
-    }
-  }, [isAuthenticated]);
-
-  // Subscribe to realtime changes when authenticated
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    
-    const webhooksChannel = supabase
-      .channel('webhook-changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'webhooks'
-      }, () => {
-        fetchData();
-      })
-      .subscribe();
-      
-    const categoriesChannel = supabase
-      .channel('category-changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'categories'
-      }, () => {
-        fetchData();
-      })
-      .subscribe();
-      
-    const responsesChannel = supabase
-      .channel('response-changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'webhook_responses'
-      }, () => {
-        fetchData();
-      })
-      .subscribe();
-    
-    return () => {
-      supabase.removeChannel(webhooksChannel);
-      supabase.removeChannel(categoriesChannel);
-      supabase.removeChannel(responsesChannel);
-    };
-  }, [isAuthenticated]);
-
-  const createWebhook = async (webhook: Omit<Webhook, "id" | "createdAt">) => {
-    if (!isAuthenticated) {
-      throw new Error("Authentication required");
-    }
-    
+  const addWebhook = async (webhook: Omit<Webhook, "id" | "createdAt">): Promise<Webhook> => {
     try {
-      const newWebhook = {
+      // Convert webhook to database format
+      const webhookData = {
         name: webhook.name,
         description: webhook.description,
         url: webhook.url,
         method: webhook.method,
         category_id: webhook.categoryId,
-        headers: webhook.headers || [],
-        default_payload: webhook.defaultPayload || "",
-        example_payloads: webhook.examplePayloads || []
+        headers: webhook.headers,
+        default_payload: webhook.defaultPayload,
+        example_payloads: webhook.examplePayloads
       };
-
-      const { data, error } = await supabase
-        .from("webhooks")
-        .insert(newWebhook)
-        .select()
-        .single();
-
-      if (error) throw new Error(`Failed to create webhook: ${error.message}`);
-      if (!data) throw new Error("No data returned after creating webhook");
-
-      const createdWebhook: Webhook = {
-        id: data.id,
-        name: data.name,
-        description: data.description || "",
-        url: data.url,
-        method: data.method as WebhookMethod,
-        categoryId: data.category_id || "",
-        headers: Array.isArray(data.headers) 
-          ? data.headers as WebhookHeader[] 
-          : [{ key: "Content-Type", value: "application/json", enabled: true }],
-        defaultPayload: data.default_payload || "",
-        examplePayloads: Array.isArray(data.example_payloads) 
-          ? data.example_payloads as Array<{ name: string; payload: string }> 
-          : [],
-        createdAt: data.created_at
-      };
-
-      setWebhooks(prev => [createdWebhook, ...prev]);
-      toast.success(`Webhook "${webhook.name}" created successfully`);
-      return createdWebhook;
-    } catch (err: any) {
-      console.error("Error creating webhook:", err);
-      toast.error(`Failed to create webhook: ${err.message}`);
-      throw err;
-    }
-  };
-
-  const updateWebhook = async (id: string, webhook: Partial<Webhook>) => {
-    if (!isAuthenticated) {
-      throw new Error("Authentication required");
-    }
-    
-    try {
-      const updateData: any = {};
       
-      if (webhook.name !== undefined) updateData.name = webhook.name;
-      if (webhook.description !== undefined) updateData.description = webhook.description;
-      if (webhook.url !== undefined) updateData.url = webhook.url;
-      if (webhook.method !== undefined) updateData.method = webhook.method;
-      if (webhook.categoryId !== undefined) updateData.category_id = webhook.categoryId;
-      if (webhook.headers !== undefined) updateData.headers = webhook.headers;
-      if (webhook.defaultPayload !== undefined) updateData.default_payload = webhook.defaultPayload;
-      if (webhook.examplePayloads !== undefined) updateData.example_payloads = webhook.examplePayloads;
-
+      // Insert webhook into Supabase
       const { data, error } = await supabase
         .from("webhooks")
-        .update(updateData)
-        .eq("id", id)
-        .select()
+        .insert([webhookData])
+        .select("*")
         .single();
 
-      if (error) throw new Error(`Failed to update webhook: ${error.message}`);
-      if (!data) throw new Error("No data returned after updating webhook");
-
-      const updatedWebhook: Webhook = {
-        id: data.id,
-        name: data.name,
-        description: data.description || "",
-        url: data.url,
-        method: data.method as WebhookMethod,
-        categoryId: data.category_id || "",
-        headers: Array.isArray(data.headers) 
-          ? data.headers as WebhookHeader[] 
-          : [{ key: "Content-Type", value: "application/json", enabled: true }],
-        defaultPayload: data.default_payload || "",
-        examplePayloads: Array.isArray(data.example_payloads) 
-          ? data.example_payloads as Array<{ name: string; payload: string }> 
-          : [],
-        createdAt: data.created_at
-      };
-
-      setWebhooks(prev => prev.map(w => w.id === id ? updatedWebhook : w));
-      toast.success(`Webhook "${updatedWebhook.name}" updated successfully`);
-      return updatedWebhook;
-    } catch (err: any) {
-      console.error("Error updating webhook:", err);
-      toast.error(`Failed to update webhook: ${err.message}`);
-      throw err;
-    }
-  };
-
-  const deleteWebhook = async (id: string) => {
-    if (!isAuthenticated) {
-      throw new Error("Authentication required");
-    }
-    
-    try {
-      const webhookToDelete = webhooks.find(w => w.id === id);
-      if (!webhookToDelete) throw new Error("Webhook not found");
-
-      const { error } = await supabase
-        .from("webhooks")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw new Error(`Failed to delete webhook: ${error.message}`);
-
-      setWebhooks(prev => prev.filter(w => w.id !== id));
-      toast.success(`Webhook "${webhookToDelete.name}" deleted successfully`);
-    } catch (err: any) {
-      console.error("Error deleting webhook:", err);
-      toast.error(`Failed to delete webhook: ${err.message}`);
-      throw err;
-    }
-  };
-
-  const createCategory = async (category: Omit<WebhookCategory, "id" | "createdAt">) => {
-    if (!isAuthenticated) {
-      throw new Error("Authentication required");
-    }
-    
-    try {
-      const newCategory = {
-        name: category.name,
-        description: category.description || null,
-        color: category.color || "#6E42CE"
-      };
-
-      const { data, error } = await supabase
-        .from("categories")
-        .insert([newCategory])
-        .select()
-        .single();
-
-      if (error) throw new Error(`Failed to create category: ${error.message}`);
-      if (!data) throw new Error("No data returned after creating category");
-
-      const createdCategory: WebhookCategory = {
-        id: data.id,
-        name: data.name,
-        description: data.description || "",
-        color: data.color || "#6E42CE",
-        createdAt: data.created_at
-      };
-
-      setCategories(prev => [...prev, createdCategory]);
-      toast.success(`Category "${category.name}" created successfully`);
-      return createdCategory;
-    } catch (err: any) {
-      console.error("Error creating category:", err);
-      toast.error(`Failed to create category: ${err.message}`);
-      throw err;
-    }
-  };
-
-  const updateCategory = async (id: string, category: Partial<WebhookCategory>) => {
-    if (!isAuthenticated) {
-      throw new Error("Authentication required");
-    }
-    
-    try {
-      const updateData = {
-        ...(category.name !== undefined && { name: category.name }),
-        ...(category.description !== undefined && { description: category.description }),
-        ...(category.color !== undefined && { color: category.color })
-      };
-
-      const { data, error } = await supabase
-        .from("categories")
-        .update(updateData)
-        .eq("id", id)
-        .select()
-        .single();
-
-      if (error) throw new Error(`Failed to update category: ${error.message}`);
-      if (!data) throw new Error("No data returned after updating category");
-
-      const updatedCategory: WebhookCategory = {
-        id: data.id,
-        name: data.name,
-        description: data.description || "",
-        color: data.color || "#6E42CE",
-        createdAt: data.created_at
-      };
-
-      setCategories(prev => prev.map(c => c.id === id ? updatedCategory : c));
-      toast.success(`Category "${updatedCategory.name}" updated successfully`);
-      return updatedCategory;
-    } catch (err: any) {
-      console.error("Error updating category:", err);
-      toast.error(`Failed to update category: ${err.message}`);
-      throw err;
-    }
-  };
-
-  const deleteCategory = async (id: string) => {
-    if (!isAuthenticated) {
-      throw new Error("Authentication required");
-    }
-    
-    try {
-      const categoryToDelete = categories.find(c => c.id === id);
-      if (!categoryToDelete) throw new Error("Category not found");
-
-      // Check if any webhooks use this category
-      const webhooksUsingCategory = webhooks.filter(w => w.categoryId === id);
-      if (webhooksUsingCategory.length > 0) {
-        throw new Error(`Cannot delete category "${categoryToDelete.name}" because it is used by ${webhooksUsingCategory.length} webhook(s)`);
+      if (error) {
+        throw error;
       }
 
+      // Convert response to our app's format
+      const newWebhook: Webhook = {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        url: data.url,
+        method: data.method as WebhookMethod,
+        categoryId: data.category_id,
+        headers: Array.isArray(data.headers) 
+          ? data.headers.map((header: any) => ({
+              key: header.key || '',
+              value: header.value || '',
+              enabled: header.enabled !== false
+            }))
+          : [],
+        defaultPayload: data.default_payload || '',
+        examplePayloads: Array.isArray(data.example_payloads) 
+          ? data.example_payloads.map((payload: any) => ({
+              name: payload.name || '',
+              payload: payload.payload || ''
+            }))
+          : [],
+        createdAt: data.created_at
+      };
+
+      setWebhooks(prev => [...prev, newWebhook]);
+      return newWebhook;
+    } catch (error: any) {
+      console.error("Error adding webhook:", error);
+      throw new Error(`Failed to add webhook: ${error.message}`);
+    }
+  };
+
+  const updateWebhook = async (id: string, webhook: Partial<Omit<Webhook, "id" | "createdAt">>): Promise<void> => {
+    try {
+      // Convert webhook to database format
+      const webhookData: Record<string, any> = {};
+      if (webhook.name !== undefined) webhookData.name = webhook.name;
+      if (webhook.description !== undefined) webhookData.description = webhook.description;
+      if (webhook.url !== undefined) webhookData.url = webhook.url;
+      if (webhook.method !== undefined) webhookData.method = webhook.method;
+      if (webhook.categoryId !== undefined) webhookData.category_id = webhook.categoryId;
+      if (webhook.headers !== undefined) webhookData.headers = webhook.headers;
+      if (webhook.defaultPayload !== undefined) webhookData.default_payload = webhook.defaultPayload;
+      if (webhook.examplePayloads !== undefined) webhookData.example_payloads = webhook.examplePayloads;
+
+      // Update webhook in Supabase
+      const { error } = await supabase
+        .from("webhooks")
+        .update(webhookData)
+        .eq("id", id);
+
+      if (error) {
+        throw error;
+      }
+
+      // Update local state
+      setWebhooks(prev => 
+        prev.map(w => 
+          w.id === id 
+            ? { ...w, ...webhook } 
+            : w
+        )
+      );
+    } catch (error: any) {
+      console.error("Error updating webhook:", error);
+      throw new Error(`Failed to update webhook: ${error.message}`);
+    }
+  };
+
+  const deleteWebhook = async (id: string): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from("webhooks")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        throw error;
+      }
+
+      setWebhooks(prev => prev.filter(webhook => webhook.id !== id));
+    } catch (error: any) {
+      console.error("Error deleting webhook:", error);
+      throw new Error(`Failed to delete webhook: ${error.message}`);
+    }
+  };
+
+  const addCategory = async (category: Omit<WebhookCategory, "id" | "createdAt">): Promise<WebhookCategory> => {
+    try {
+      // Convert category to database format
+      const categoryData = {
+        name: category.name,
+        description: category.description,
+        color: category.color || '#6E42CE'
+      };
+      
+      // Insert category into Supabase
+      const { data, error } = await supabase
+        .from("categories")
+        .insert([categoryData])
+        .select("*")
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      // Convert response to our app's format
+      const newCategory: WebhookCategory = {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        color: data.color,
+        createdAt: data.created_at
+      };
+
+      setCategories(prev => [...prev, newCategory]);
+      return newCategory;
+    } catch (error: any) {
+      console.error("Error adding category:", error);
+      throw new Error(`Failed to add category: ${error.message}`);
+    }
+  };
+
+  const updateCategory = async (id: string, category: Partial<Omit<WebhookCategory, "id" | "createdAt">>): Promise<void> => {
+    try {
+      // Convert category to database format
+      const categoryData: Record<string, any> = {};
+      if (category.name !== undefined) categoryData.name = category.name;
+      if (category.description !== undefined) categoryData.description = category.description;
+      if (category.color !== undefined) categoryData.color = category.color;
+
+      // Update category in Supabase
+      const { error } = await supabase
+        .from("categories")
+        .update(categoryData)
+        .eq("id", id);
+
+      if (error) {
+        throw error;
+      }
+
+      // Update local state
+      setCategories(prev => 
+        prev.map(c => 
+          c.id === id 
+            ? { ...c, ...category } 
+            : c
+        )
+      );
+    } catch (error: any) {
+      console.error("Error updating category:", error);
+      throw new Error(`Failed to update category: ${error.message}`);
+    }
+  };
+
+  const deleteCategory = async (id: string): Promise<void> => {
+    try {
       const { error } = await supabase
         .from("categories")
         .delete()
         .eq("id", id);
 
-      if (error) throw new Error(`Failed to delete category: ${error.message}`);
+      if (error) {
+        throw error;
+      }
 
-      setCategories(prev => prev.filter(c => c.id !== id));
-      toast.success(`Category "${categoryToDelete.name}" deleted successfully`);
-    } catch (err: any) {
-      console.error("Error deleting category:", err);
-      toast.error(`Failed to delete category: ${err.message}`);
-      throw err;
+      setCategories(prev => prev.filter(category => category.id !== id));
+    } catch (error: any) {
+      console.error("Error deleting category:", error);
+      throw new Error(`Failed to delete category: ${error.message}`);
     }
   };
-  
-  const executeWebhook = async (webhook: Webhook, payload: string) => {
-    if (!isAuthenticated) {
-      throw new Error("Authentication required");
-    }
-    
+
+  const executeWebhook = async (webhookId: string, payload?: string): Promise<void> => {
     try {
-      // Execute the webhook and store response in database
-      // This would normally call an API endpoint that executes the webhook
-      // For now, let's simulate a response
-      const timestamp = new Date().toISOString();
-      const response = {
+      const webhook = webhooks.find(w => w.id === webhookId);
+      if (!webhook) {
+        throw new Error("Webhook not found");
+      }
+
+      // Use the provided payload or default payload
+      const requestPayload = payload || webhook.defaultPayload;
+      
+      // Simulate webhook execution
+      const response: WebhookResponse = {
         id: uuidv4(),
-        webhook_id: webhook.id,
+        webhookId,
         status: 200,
-        status_text: "OK",
-        headers: { "content-type": "application/json" },
-        data: { success: true, message: "Webhook executed successfully" },
-        timestamp
+        statusText: "OK",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        data: { message: "Webhook executed successfully", timestamp: new Date().toISOString() },
+        timestamp: new Date().toISOString()
       };
-      
-      const { error } = await supabase
-        .from("webhook_responses")
-        .insert([response]);
-        
-      if (error) throw new Error(`Failed to store webhook response: ${error.message}`);
-      
-      toast.success(`Webhook "${webhook.name}" executed successfully`);
-      await fetchData(); // Refresh data to get the new response
-    } catch (err: any) {
-      console.error("Error executing webhook:", err);
-      toast.error(`Failed to execute webhook: ${err.message}`);
-      throw err;
+
+      // Save response to state
+      setResponses(prev => [response, ...prev]);
+    } catch (error: any) {
+      console.error("Error executing webhook:", error);
+      toast.error(`Failed to execute webhook: ${error.message}`);
     }
   };
-  
-  const clearResponse = (webhookId: string) => {
-    setResponses(prev => prev.filter(r => r.webhookId !== webhookId));
-  };
 
-  const refetchData = async () => {
-    await fetchData();
+  const clearResponse = () => {
+    setResponses([]);
   };
 
   const value = {
     webhooks,
     categories,
     responses,
-    createWebhook,
-    updateWebhook,
     deleteWebhook,
-    createCategory,
-    updateCategory,
     deleteCategory,
+    addWebhook,
+    updateWebhook,
+    addCategory,
+    updateCategory,
     executeWebhook,
-    clearResponse,
-    isLoading,
-    error,
-    refetchData
+    clearResponse
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

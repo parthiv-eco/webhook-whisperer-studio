@@ -1,10 +1,13 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-// Hardcoded admin credentials (in a real app, you would use environment variables)
+// Hardcoded demo credentials
 const ADMIN_EMAIL = "admin@example.com";
 const ADMIN_PASSWORD = "admin123";
+const USER_EMAIL = "user@example.com";
+const USER_PASSWORD = "user123";
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -25,20 +28,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Check for persisted admin session
-        const adminSession = localStorage.getItem("adminSession");
-        if (adminSession) {
+        // Check for persisted demo session
+        const demoSession = localStorage.getItem("demoSession");
+        if (demoSession) {
           try {
-            const sessionData = JSON.parse(adminSession);
-            if (sessionData.email === ADMIN_EMAIL) {
+            const sessionData = JSON.parse(demoSession);
+            const isAdminUser = sessionData.email === ADMIN_EMAIL;
+            const isRegularUser = sessionData.email === USER_EMAIL;
+            
+            if (isAdminUser || isRegularUser) {
               setIsAuthenticated(true);
-              setIsAdmin(true);
+              setIsAdmin(isAdminUser);
               setIsLoading(false);
               return;
             }
           } catch (e) {
             // Invalid session data, remove it
-            localStorage.removeItem("adminSession");
+            localStorage.removeItem("demoSession");
           }
         }
 
@@ -50,9 +56,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIsAuthenticated(true);
           setIsAdmin(session.user.email === ADMIN_EMAIL);
           
-          // Store admin session if it's the admin user
-          if (session.user.email === ADMIN_EMAIL) {
-            localStorage.setItem("adminSession", JSON.stringify({
+          // Store session if it's a demo user
+          if (session.user.email === ADMIN_EMAIL || session.user.email === USER_EMAIL) {
+            localStorage.setItem("demoSession", JSON.stringify({
               email: session.user.email,
               timestamp: new Date().toISOString()
             }));
@@ -60,13 +66,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           setIsAuthenticated(false);
           setIsAdmin(false);
-          localStorage.removeItem("adminSession");
+          localStorage.removeItem("demoSession");
         }
       } catch (error) {
         console.error("Auth check error:", error);
         setIsAuthenticated(false);
         setIsAdmin(false);
-        localStorage.removeItem("adminSession");
+        localStorage.removeItem("demoSession");
       } finally {
         setIsLoading(false);
       }
@@ -80,7 +86,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsAuthenticated(true);
         if (session?.user.email === ADMIN_EMAIL) {
           setIsAdmin(true);
-          localStorage.setItem("adminSession", JSON.stringify({
+          localStorage.setItem("demoSession", JSON.stringify({
+            email: session.user.email,
+            timestamp: new Date().toISOString()
+          }));
+        } else if (session?.user.email === USER_EMAIL) {
+          setIsAdmin(false);
+          localStorage.setItem("demoSession", JSON.stringify({
             email: session.user.email,
             timestamp: new Date().toISOString()
           }));
@@ -88,7 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else if (event === 'SIGNED_OUT') {
         setIsAuthenticated(false);
         setIsAdmin(false);
-        localStorage.removeItem("adminSession");
+        localStorage.removeItem("demoSession");
       }
     });
 
@@ -104,10 +116,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // For demo admin user, bypass Supabase authentication
+      // For demo admin user
       if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        // Persist admin session with more information
-        localStorage.setItem("adminSession", JSON.stringify({
+        // Persist admin session
+        localStorage.setItem("demoSession", JSON.stringify({
           email: ADMIN_EMAIL,
           timestamp: new Date().toISOString()
         }));
@@ -120,7 +132,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      // For non-admin users, use regular Supabase auth
+      // For demo regular user
+      if (email === USER_EMAIL && password === USER_PASSWORD) {
+        // Persist user session
+        localStorage.setItem("demoSession", JSON.stringify({
+          email: USER_EMAIL,
+          timestamp: new Date().toISOString()
+        }));
+
+        // Set authenticated state
+        setIsAuthenticated(true);
+        setIsAdmin(false);
+        
+        toast.success("Logged in successfully as regular user");
+        return;
+      }
+      
+      // For non-demo users, use regular Supabase auth
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -144,7 +172,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       // Clear all auth state regardless of user type
-      localStorage.removeItem("adminSession");
+      localStorage.removeItem("demoSession");
       setIsAuthenticated(false);
       setIsAdmin(false);
       

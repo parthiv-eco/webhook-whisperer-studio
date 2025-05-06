@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
@@ -13,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 const AdminCategories = () => {
   const { categories, deleteCategory, webhooks } = useApp();
   const { isAuthenticated, isAdmin, login } = useAuth();
-  const navigate = useNavigate(); // Added missing navigate hook
+  const navigate = useNavigate();
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
 
   // Auto-login effect for demo purposes

@@ -9,13 +9,15 @@ interface UseSessionManagerOptions {
   requireAdmin?: boolean;
   redirectTo?: string;
   autoLogin?: boolean;
+  loginAsAdmin?: boolean;
 }
 
 export const useSessionManager = ({
   requireAuth = false,
   requireAdmin = false,
   redirectTo = "/login",
-  autoLogin = false
+  autoLogin = false,
+  loginAsAdmin = true
 }: UseSessionManagerOptions = {}) => {
   const { isAuthenticated, isAdmin, isLoading, login } = useAuth();
   const navigate = useNavigate();
@@ -26,8 +28,13 @@ export const useSessionManager = ({
     const handleAutoLogin = async () => {
       if (autoLogin && !isAuthenticated && !isLoading) {
         try {
-          await login("admin@example.com", "admin123");
-          toast.success("Auto-logged in as admin for demo purposes");
+          if (loginAsAdmin) {
+            await login("admin@example.com", "admin123");
+            toast.success("Auto-logged in as admin for demo purposes");
+          } else {
+            await login("user@example.com", "user123");
+            toast.success("Auto-logged in as regular user for demo purposes");
+          }
         } catch (error) {
           console.error("Auto-login failed:", error);
         }
@@ -35,7 +42,7 @@ export const useSessionManager = ({
     };
     
     handleAutoLogin();
-  }, [autoLogin, isAuthenticated, isLoading, login]);
+  }, [autoLogin, isAuthenticated, isLoading, login, loginAsAdmin]);
 
   // Handle auth requirements and redirects
   useEffect(() => {

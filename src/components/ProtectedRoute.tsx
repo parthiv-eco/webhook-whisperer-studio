@@ -7,17 +7,20 @@ interface ProtectedRouteProps {
   children: ReactNode;
   requireAdmin?: boolean;
   autoLogin?: boolean;
+  loginAsAdmin?: boolean;
 }
 
 const ProtectedRoute = ({ 
   children, 
   requireAdmin = false,
-  autoLogin = false
+  autoLogin = false,
+  loginAsAdmin = true
 }: ProtectedRouteProps) => {
   const { isLoading, isAuthChecked, isAuthorized } = useSessionManager({
     requireAuth: true,
     requireAdmin,
-    autoLogin
+    autoLogin,
+    loginAsAdmin
   });
 
   if (isLoading) {
