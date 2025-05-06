@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PlusIcon, EditIcon, TrashIcon, ShieldIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useNavigate } from "react-router-dom";
 
 const AdminCategories = () => {
   const { categories, deleteCategory, webhooks } = useApp();

@@ -31,7 +31,12 @@ export interface Webhook {
   createdAt: string;
 }
 
+// Added WebhookData type as an alias for Webhook for backward compatibility
+export type WebhookData = Webhook;
+
 export interface WebhookResponse {
+  id: string;
+  webhookId: string;
   status: number;
   statusText: string;
   headers: Record<string, string>;

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useApp } from "@/contexts/AppContext";
 import Layout from "@/components/Layout";
@@ -11,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 const CategoriesPage = () => {
-  const { categories, webhooks, addCategory } = useApp();
+  const { categories, webhooks, createCategory } = useApp();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [newCategory, setNewCategory] = useState({
@@ -29,7 +28,7 @@ const CategoriesPage = () => {
   const handleCreateCategory = () => {
     if (newCategory.name.trim() === "") return;
 
-    addCategory({
+    createCategory({
       name: newCategory.name,
       description: newCategory.description,
       color: newCategory.color,

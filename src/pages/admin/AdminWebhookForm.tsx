@@ -19,7 +19,7 @@ import { ArrowLeftIcon, SaveIcon } from "lucide-react";
 const AdminWebhookForm = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { webhooks, categories, addWebhook, updateWebhook } = useApp();
+  const { webhooks, categories, createWebhook, updateWebhook } = useApp();
   const { isAdmin } = useAuth();
   
   const [name, setName] = useState("");
@@ -94,13 +94,9 @@ const AdminWebhookForm = () => {
     
     try {
       if (isEditing && id) {
-        await updateWebhook({
-          id,
-          ...webhookData,
-          createdAt: webhooks.find(w => w.id === id)?.createdAt || new Date().toISOString()
-        });
+        await updateWebhook(id, webhookData);
       } else {
-        await addWebhook(webhookData);
+        await createWebhook(webhookData);
       }
       
       navigate("/admin/webhooks");

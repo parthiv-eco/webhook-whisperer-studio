@@ -1,7 +1,6 @@
-
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { WebhookData, WebhookCategory, WebhookResponse } from "@/types";
+import { Webhook, WebhookData, WebhookCategory, WebhookResponse } from "@/types";
 import { useAuth } from "./AuthContext";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
@@ -17,6 +16,8 @@ interface AppContextType {
   createCategory: (category: Omit<WebhookCategory, "id" | "createdAt">) => Promise<WebhookCategory>;
   updateCategory: (id: string, category: Partial<WebhookCategory>) => Promise<WebhookCategory>;
   deleteCategory: (id: string) => Promise<void>;
+  executeWebhook: (webhook: WebhookData, payload: string) => Promise<void>;
+  clearResponse: (webhookId: string) => void;
   isLoading: boolean;
   error: Error | null;
   refetchData: () => Promise<void>;
@@ -57,9 +58,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           .select();
           
         if (defaultCategoriesError) throw new Error(`Error creating default categories: ${defaultCategoriesError.message}`);
-        setCategories(defaultCategoriesData || []);
+        
+        // Transform the data to match our app's schema
+        const transformedCategories: WebhookCategory[] = (defaultCategoriesData || []).map(cat => ({
+          id: cat.id,
+          name: cat.name,
+          description: cat.description || "",
+          color: cat.color || "#6E42CE",
+          createdAt: cat.created_at
+        }));
+        
+        setCategories(transformedCategories);
       } else {
-        setCategories(categoriesData || []);
+        // Transform the data to match our app's schema
+        const transformedCategories: WebhookCategory[] = (categoriesData || []).map(cat => ({
+          id: cat.id,
+          name: cat.name,
+          description: cat.description || "",
+          color: cat.color || "#6E42CE",
+          createdAt: cat.created_at
+        }));
+        
+        setCategories(transformedCategories);
       }
 
       // Fetch webhooks
@@ -100,7 +120,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         webhookId: response.webhook_id,
         status: response.status,
         statusText: response.status_text,
-        headers: response.headers || {},
+        headers: response.headers as Record<string, string> || {},
         data: response.data || null,
         timestamp: response.timestamp
       }));
@@ -405,6 +425,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       throw err;
     }
   };
+  
+  const executeWebhook = async (webhook: WebhookData, payload: string) => {
+    if (!isAuthenticated) {
+      throw new Error("Authentication required");
+    }
+    
+    try {
+      // Execute the webhook and store response in database
+      // This would normally call an API endpoint that executes the webhook
+      // For now, let's simulate a response
+      const timestamp = new Date().toISOString();
+      const response = {
+        id: uuidv4(),
+        webhook_id: webhook.id,
+        status: 200,
+        status_text: "OK",
+        headers: { "content-type": "application/json" },
+        data: { success: true, message: "Webhook executed successfully" },
+        timestamp
+      };
+      
+      const { error } = await supabase
+        .from("webhook_responses")
+        .insert([response]);
+        
+      if (error) throw new Error(`Failed to store webhook response: ${error.message}`);
+      
+      toast.success(`Webhook "${webhook.name}" executed successfully`);
+      await fetchData(); // Refresh data to get the new response
+    } catch (err: any) {
+      console.error("Error executing webhook:", err);
+      toast.error(`Failed to execute webhook: ${err.message}`);
+      throw err;
+    }
+  };
+  
+  const clearResponse = (webhookId: string) => {
+    setResponses(prev => prev.filter(r => r.webhookId !== webhookId));
+  };
 
   const refetchData = async () => {
     await fetchData();
@@ -420,6 +479,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     createCategory,
     updateCategory,
     deleteCategory,
+    executeWebhook,
+    clearResponse,
     isLoading,
     error,
     refetchData

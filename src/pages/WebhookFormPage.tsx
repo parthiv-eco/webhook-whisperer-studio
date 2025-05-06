@@ -19,7 +19,7 @@ import { ArrowLeftIcon, SaveIcon, ShieldIcon } from "lucide-react";
 const WebhookFormPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { webhooks, categories, addWebhook, updateWebhook } = useApp();
+  const { webhooks, categories, createWebhook, updateWebhook } = useApp();
   const { isAuthenticated, isAdmin, login } = useAuth();
   
   const [name, setName] = useState("");
@@ -118,14 +118,10 @@ const WebhookFormPage = () => {
     
     try {
       if (isEditing && id) {
-        await updateWebhook({
-          id,
-          ...webhookData,
-          createdAt: webhooks.find(w => w.id === id)?.createdAt || new Date().toISOString()
-        });
+        await updateWebhook(id, webhookData);
         navigate("/admin/webhooks");
       } else {
-        await addWebhook(webhookData);
+        await createWebhook(webhookData);
         navigate("/admin/webhooks");
       }
     } catch (error: any) {

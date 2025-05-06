@@ -65,19 +65,15 @@ const EditCategoryPage = () => {
     
     if (!id) return;
     
-    const category = categories.find((c) => c.id === id);
-    if (category) {
-      try {
-        await updateCategory({
-          ...category,
-          name,
-          description,
-          color,
-        });
-        navigate("/admin/categories");
-      } catch (error: any) {
-        toast.error(`Failed to update category: ${error.message}`);
-      }
+    try {
+      await updateCategory(id, {
+        name,
+        description,
+        color,
+      });
+      navigate("/admin/categories");
+    } catch (error: any) {
+      toast.error(`Failed to update category: ${error.message}`);
     }
   };
   

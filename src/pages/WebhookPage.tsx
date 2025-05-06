@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
@@ -11,19 +12,20 @@ import CodeEditor from "@/components/CodeEditor";
 import ResponseViewer from "@/components/ResponseViewer";
 import { ArrowLeft, Edit, Send } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Webhook } from "@/types";
+import { Webhook, WebhookResponse } from "@/types";
 import { toast } from "sonner";
 
 const WebhookPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { webhooks, categories, executeWebhook, responses, clearResponse } = useApp();
+  const { webhooks, categories, executeWebhook, responses } = useApp();
   const { isAdmin } = useAuth();
   
   const [webhook, setWebhook] = useState<Webhook | null>(null);
   const [category, setCategory] = useState<{ name: string; color?: string } | null>(null);
   const [payload, setPayload] = useState("");
   const [isExecuting, setIsExecuting] = useState(false);
+  const [webhookResponse, setWebhookResponse] = useState<WebhookResponse | null>(null);
   
   useEffect(() => {
     if (!id) return;
@@ -43,6 +45,16 @@ const WebhookPage = () => {
     }
   }, [id, webhooks, categories, navigate]);
   
+  // Find the response for this webhook
+  useEffect(() => {
+    if (id && responses.length > 0) {
+      const latestResponse = responses.find(r => r.webhookId === id);
+      setWebhookResponse(latestResponse || null);
+    } else {
+      setWebhookResponse(null);
+    }
+  }, [id, responses]);
+  
   const handleExecute = async () => {
     if (!webhook) return;
     
@@ -53,8 +65,6 @@ const WebhookPage = () => {
       setIsExecuting(false);
     }
   };
-  
-  const response = webhook ? responses[webhook.id] : null;
   
   if (!webhook) {
     return (
@@ -181,8 +191,8 @@ const WebhookPage = () => {
           </div>
           
           <div>
-            {response ? (
-              <ResponseViewer response={response} />
+            {webhookResponse ? (
+              <ResponseViewer response={webhookResponse} />
             ) : (
               <Card>
                 <CardHeader className="pb-2">

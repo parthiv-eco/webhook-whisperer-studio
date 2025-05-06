@@ -11,7 +11,7 @@ import { toast } from "sonner";
 
 const AdminCategoryForm = () => {
   const navigate = useNavigate();
-  const { addCategory } = useApp();
+  const { createCategory } = useApp();
   const { isAuthenticated, isAdmin, login } = useAuth();
   
   const [name, setName] = useState("");
@@ -46,7 +46,7 @@ const AdminCategoryForm = () => {
     setIsLoading(true);
     
     try {
-      await addCategory({
+      await createCategory({
         name,
         description,
         color,
