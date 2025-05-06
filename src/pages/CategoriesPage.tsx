@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import Layout from "@/components/Layout";
@@ -12,10 +13,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 
 const CategoriesPage = () => {
-  // Replace createCategory with addCategory
   const { categories, addCategory } = useApp();
 
   useEffect(() => {

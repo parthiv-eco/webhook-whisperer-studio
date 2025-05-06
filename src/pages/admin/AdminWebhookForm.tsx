@@ -1,17 +1,17 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useApp } from "@/contexts/AppContext";
-import { WebhookMethod } from "@/types";
+import { WebhookMethods } from "@/types";
 import { toast } from "sonner";
 
 const formSchema = z.object({
@@ -20,7 +20,7 @@ const formSchema = z.object({
   }),
   description: z.string().optional(),
   url: z.string().url({ message: "Please enter a valid URL." }),
-  method: z.enum([WebhookMethod.GET, WebhookMethod.POST, WebhookMethod.PUT, WebhookMethod.PATCH, WebhookMethod.DELETE]),
+  method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]),
   categoryId: z.string().uuid({ message: "Please select a category." }),
   defaultPayload: z.string().optional(),
 });
@@ -28,7 +28,6 @@ const formSchema = z.object({
 const AdminWebhookForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  // Replace createWebhook with addWebhook
   const { categories, addWebhook, webhooks } = useApp();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -38,7 +37,7 @@ const AdminWebhookForm = () => {
       name: "",
       description: "",
       url: "",
-      method: WebhookMethod.POST,
+      method: "POST" as const,
       categoryId: "",
       defaultPayload: "",
     },
@@ -67,7 +66,12 @@ const AdminWebhookForm = () => {
         // Implement update logic here
         toast.success("Webhook updated successfully!");
       } else {
-        await addWebhook(values);
+        // Create new webhook with required properties
+        await addWebhook({
+          ...values,
+          headers: [],
+          examplePayloads: []
+        });
         toast.success("Webhook created successfully!");
       }
       navigate("/admin/webhooks");
@@ -114,6 +118,7 @@ const AdminWebhookForm = () => {
                         placeholder="A brief description of the webhook"
                         className="resize-none"
                         {...field}
+                        value={field.value || ""}
                       />
                     </FormControl>
                     <FormDescription>
@@ -149,11 +154,11 @@ const AdminWebhookForm = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value={WebhookMethod.GET}>GET</SelectItem>
-                        <SelectItem value={WebhookMethod.POST}>POST</SelectItem>
-                        <SelectItem value={WebhookMethod.PUT}>PUT</SelectItem>
-                        <SelectItem value={WebhookMethod.PATCH}>PATCH</SelectItem>
-                        <SelectItem value={WebhookMethod.DELETE}>DELETE</SelectItem>
+                        <SelectItem value="GET">GET</SelectItem>
+                        <SelectItem value="POST">POST</SelectItem>
+                        <SelectItem value="PUT">PUT</SelectItem>
+                        <SelectItem value="PATCH">PATCH</SelectItem>
+                        <SelectItem value="DELETE">DELETE</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -195,6 +200,7 @@ const AdminWebhookForm = () => {
                         placeholder='{ "key": "value" }'
                         className="resize-none"
                         {...field}
+                        value={field.value || ""}
                       />
                     </FormControl>
                     <FormDescription>

@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
+
+import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,15 +13,15 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Plus, Trash } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useApp } from "@/contexts/AppContext";
-import { WebhookCategory, WebhookMethod, WebhookHeader, WebhookExamplePayload } from "@/types";
+import { WebhookHeader } from "@/types";
 import { toast } from "sonner";
-import { v4 as uuidv4 } from 'uuid';
+import { Checkbox } from "@/components/ui/checkbox";
 
 const webhookFormSchema = z.object({
   name: z.string().min(2, {
     message: "Webhook name must be at least 2 characters.",
   }),
-  description: z.string().optional(),
+  description: z.string(),
   url: z.string().url({
     message: "Please enter a valid URL.",
   }),
@@ -29,20 +29,20 @@ const webhookFormSchema = z.object({
   categoryId: z.string().uuid({
     message: "Please select a category.",
   }),
-  defaultPayload: z.string().optional(),
+  defaultPayload: z.string(),
   headers: z.array(
     z.object({
       key: z.string(),
       value: z.string(),
       enabled: z.boolean(),
     })
-  ).optional(),
+  ),
   examplePayloads: z.array(
     z.object({
       name: z.string(),
       payload: z.string(),
     })
-  ).optional(),
+  ),
 });
 
 type WebhookFormValues = z.infer<typeof webhookFormSchema>;
@@ -51,7 +51,6 @@ const WebhookFormPage = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
-  // Replace createWebhook with addWebhook
   const { categories, addWebhook, webhooks } = useApp();
   const [webhook, setWebhook] = useState(
     id ? webhooks.find((webhook) => webhook.id === id) : null
@@ -78,11 +77,11 @@ const WebhookFormPage = () => {
       if (existingWebhook) {
         setWebhook(existingWebhook);
         form.reset({
-          name: existingWebhook.name || "",
+          name: existingWebhook.name,
           description: existingWebhook.description || "",
-          url: existingWebhook.url || "",
-          method: existingWebhook.method || "GET",
-          categoryId: existingWebhook.categoryId || "",
+          url: existingWebhook.url,
+          method: existingWebhook.method,
+          categoryId: existingWebhook.categoryId,
           defaultPayload: existingWebhook.defaultPayload || "",
           headers: existingWebhook.headers || [],
           examplePayloads: existingWebhook.examplePayloads || [],
@@ -112,7 +111,8 @@ const WebhookFormPage = () => {
   };
 
   const handleAddHeader = () => {
-    form.setValue("headers", [...(form.getValues("headers") || []), { key: "", value: "", enabled: true }]);
+    const headers = [...(form.getValues("headers") || []), { key: "", value: "", enabled: true }];
+    form.setValue("headers", headers);
   };
 
   const handleRemoveHeader = (index: number) => {
@@ -122,7 +122,8 @@ const WebhookFormPage = () => {
   };
 
   const handleAddExamplePayload = () => {
-    form.setValue("examplePayloads", [...(form.getValues("examplePayloads") || []), { name: "", payload: "" }]);
+    const examplePayloads = [...(form.getValues("examplePayloads") || []), { name: "", payload: "" }];
+    form.setValue("examplePayloads", examplePayloads);
   };
 
   const handleRemoveExamplePayload = (index: number) => {
@@ -167,6 +168,7 @@ const WebhookFormPage = () => {
                         placeholder="Webhook Description"
                         className="resize-none"
                         {...field}
+                        value={field.value || ""}
                       />
                     </FormControl>
                     <FormMessage />
@@ -245,6 +247,7 @@ const WebhookFormPage = () => {
                         placeholder='{ "key": "value" }'
                         className="resize-none"
                         {...field}
+                        value={field.value || ""}
                       />
                     </FormControl>
                     <FormMessage />
@@ -289,18 +292,17 @@ const WebhookFormPage = () => {
                             control={form.control}
                             name={`headers.${index}.enabled` as const}
                             render={({ field }) => (
-                              <FormItem className="w-1/6 flex items-center justify-center">
+                              <FormItem className="w-1/6 flex items-center justify-center pt-7">
                                 <FormControl>
-                                  <label className="inline-flex items-center">
-                                    <Input
-                                      type="checkbox"
-                                      checked={field.value}
-                                      onCheckedChange={field.onChange}
-                                      className="mr-2"
-                                    />
-                                    Enabled
-                                  </label>
+                                  <Checkbox 
+                                    checked={field.value} 
+                                    onCheckedChange={field.onChange} 
+                                    id={`header-enabled-${index}`}
+                                  />
                                 </FormControl>
+                                <FormLabel htmlFor={`header-enabled-${index}`} className="ml-2">
+                                  Enabled
+                                </FormLabel>
                                 <FormMessage />
                               </FormItem>
                             )}

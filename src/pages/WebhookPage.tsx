@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
@@ -8,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Copy, Edit, Play, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Editor } from "@monaco-editor/react";
+import Editor from "@monaco-editor/react";
 
 const WebhookPage = () => {
   const { id } = useParams<{ id: string }>();

@@ -43,3 +43,12 @@ export interface WebhookResponse {
   data: any;
   timestamp: string;
 }
+
+// Constants for webhook methods
+export const WebhookMethods = {
+  GET: 'GET',
+  POST: 'POST',
+  PUT: 'PUT',
+  DELETE: 'DELETE',
+  PATCH: 'PATCH',
+} as const;
