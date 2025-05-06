@@ -1,22 +1,23 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Webhook, WebhookData, WebhookCategory, WebhookResponse } from "@/types";
+import { Webhook, WebhookCategory, WebhookHeader, WebhookMethod, WebhookResponse } from "@/types";
 import { useAuth } from "./AuthContext";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 import { defaultCategories } from "@/lib/data";
+import { Json } from "@/integrations/supabase/types";
 
 interface AppContextType {
-  webhooks: WebhookData[];
+  webhooks: Webhook[];
   categories: WebhookCategory[];
   responses: WebhookResponse[];
-  createWebhook: (webhook: Omit<WebhookData, "id" | "createdAt">) => Promise<WebhookData>;
-  updateWebhook: (id: string, webhook: Partial<WebhookData>) => Promise<WebhookData>;
+  createWebhook: (webhook: Omit<Webhook, "id" | "createdAt">) => Promise<Webhook>;
+  updateWebhook: (id: string, webhook: Partial<Webhook>) => Promise<Webhook>;
   deleteWebhook: (id: string) => Promise<void>;
   createCategory: (category: Omit<WebhookCategory, "id" | "createdAt">) => Promise<WebhookCategory>;
   updateCategory: (id: string, category: Partial<WebhookCategory>) => Promise<WebhookCategory>;
   deleteCategory: (id: string) => Promise<void>;
-  executeWebhook: (webhook: WebhookData, payload: string) => Promise<void>;
+  executeWebhook: (webhook: Webhook, payload: string) => Promise<void>;
   clearResponse: (webhookId: string) => void;
   isLoading: boolean;
   error: Error | null;
@@ -29,7 +30,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { isAuthenticated } = useAuth();
-  const [webhooks, setWebhooks] = useState<WebhookData[]>([]);
+  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [categories, setCategories] = useState<WebhookCategory[]>([]);
   const [responses, setResponses] = useState<WebhookResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -91,16 +92,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       if (webhooksError) throw new Error(`Error fetching webhooks: ${webhooksError.message}`);
       
       // Transform webhook data to match our app's schema
-      const transformedWebhooks: WebhookData[] = (webhooksData || []).map(webhook => ({
+      const transformedWebhooks: Webhook[] = (webhooksData || []).map(webhook => ({
         id: webhook.id,
         name: webhook.name,
         description: webhook.description || "",
         url: webhook.url,
-        method: webhook.method,
+        method: webhook.method as WebhookMethod, // Cast to ensure it fits the WebhookMethod type
         categoryId: webhook.category_id || "",
-        headers: webhook.headers || [],
+        headers: Array.isArray(webhook.headers) 
+          ? webhook.headers as WebhookHeader[] 
+          : [{ key: "Content-Type", value: "application/json", enabled: true }],
         defaultPayload: webhook.default_payload || "",
-        examplePayloads: webhook.example_payloads || [],
+        examplePayloads: Array.isArray(webhook.example_payloads) 
+          ? webhook.example_payloads as Array<{ name: string; payload: string }> 
+          : [],
         createdAt: webhook.created_at
       }));
       
@@ -120,7 +125,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         webhookId: response.webhook_id,
         status: response.status,
         statusText: response.status_text,
-        headers: response.headers as Record<string, string> || {},
+        headers: typeof response.headers === 'object' ? response.headers as Record<string, string> : {},
         data: response.data || null,
         timestamp: response.timestamp
       }));
@@ -192,7 +197,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [isAuthenticated]);
 
-  const createWebhook = async (webhook: Omit<WebhookData, "id" | "createdAt">) => {
+  const createWebhook = async (webhook: Omit<Webhook, "id" | "createdAt">) => {
     if (!isAuthenticated) {
       throw new Error("Authentication required");
     }
@@ -211,23 +216,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const { data, error } = await supabase
         .from("webhooks")
-        .insert([newWebhook])
+        .insert(newWebhook)
         .select()
         .single();
 
       if (error) throw new Error(`Failed to create webhook: ${error.message}`);
       if (!data) throw new Error("No data returned after creating webhook");
 
-      const createdWebhook: WebhookData = {
+      const createdWebhook: Webhook = {
         id: data.id,
         name: data.name,
         description: data.description || "",
         url: data.url,
-        method: data.method,
+        method: data.method as WebhookMethod,
         categoryId: data.category_id || "",
-        headers: data.headers || [],
+        headers: Array.isArray(data.headers) 
+          ? data.headers as WebhookHeader[] 
+          : [{ key: "Content-Type", value: "application/json", enabled: true }],
         defaultPayload: data.default_payload || "",
-        examplePayloads: data.example_payloads || [],
+        examplePayloads: Array.isArray(data.example_payloads) 
+          ? data.example_payloads as Array<{ name: string; payload: string }> 
+          : [],
         createdAt: data.created_at
       };
 
@@ -241,22 +250,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const updateWebhook = async (id: string, webhook: Partial<WebhookData>) => {
+  const updateWebhook = async (id: string, webhook: Partial<Webhook>) => {
     if (!isAuthenticated) {
       throw new Error("Authentication required");
     }
     
     try {
-      const updateData = {
-        ...(webhook.name !== undefined && { name: webhook.name }),
-        ...(webhook.description !== undefined && { description: webhook.description }),
-        ...(webhook.url !== undefined && { url: webhook.url }),
-        ...(webhook.method !== undefined && { method: webhook.method }),
-        ...(webhook.categoryId !== undefined && { category_id: webhook.categoryId }),
-        ...(webhook.headers !== undefined && { headers: webhook.headers }),
-        ...(webhook.defaultPayload !== undefined && { default_payload: webhook.defaultPayload }),
-        ...(webhook.examplePayloads !== undefined && { example_payloads: webhook.examplePayloads })
-      };
+      const updateData: any = {};
+      
+      if (webhook.name !== undefined) updateData.name = webhook.name;
+      if (webhook.description !== undefined) updateData.description = webhook.description;
+      if (webhook.url !== undefined) updateData.url = webhook.url;
+      if (webhook.method !== undefined) updateData.method = webhook.method;
+      if (webhook.categoryId !== undefined) updateData.category_id = webhook.categoryId;
+      if (webhook.headers !== undefined) updateData.headers = webhook.headers;
+      if (webhook.defaultPayload !== undefined) updateData.default_payload = webhook.defaultPayload;
+      if (webhook.examplePayloads !== undefined) updateData.example_payloads = webhook.examplePayloads;
 
       const { data, error } = await supabase
         .from("webhooks")
@@ -268,16 +277,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       if (error) throw new Error(`Failed to update webhook: ${error.message}`);
       if (!data) throw new Error("No data returned after updating webhook");
 
-      const updatedWebhook: WebhookData = {
+      const updatedWebhook: Webhook = {
         id: data.id,
         name: data.name,
         description: data.description || "",
         url: data.url,
-        method: data.method,
+        method: data.method as WebhookMethod,
         categoryId: data.category_id || "",
-        headers: data.headers || [],
+        headers: Array.isArray(data.headers) 
+          ? data.headers as WebhookHeader[] 
+          : [{ key: "Content-Type", value: "application/json", enabled: true }],
         defaultPayload: data.default_payload || "",
-        examplePayloads: data.example_payloads || [],
+        examplePayloads: Array.isArray(data.example_payloads) 
+          ? data.example_payloads as Array<{ name: string; payload: string }> 
+          : [],
         createdAt: data.created_at
       };
 
@@ -426,7 +439,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
   
-  const executeWebhook = async (webhook: WebhookData, payload: string) => {
+  const executeWebhook = async (webhook: Webhook, payload: string) => {
     if (!isAuthenticated) {
       throw new Error("Authentication required");
     }

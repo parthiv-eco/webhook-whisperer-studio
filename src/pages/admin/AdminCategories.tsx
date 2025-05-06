@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,11 +9,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PlusIcon, EditIcon, TrashIcon, ShieldIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useNavigate } from "react-router-dom";
 
 const AdminCategories = () => {
   const { categories, deleteCategory, webhooks } = useApp();
   const { isAuthenticated, isAdmin, login } = useAuth();
+  const navigate = useNavigate(); // Added missing navigate hook
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
 
   // Auto-login effect for demo purposes
