@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -20,7 +21,14 @@ import AdminWebhookForm from "@/pages/admin/AdminWebhookForm";
 import LoginPage from "@/pages/LoginPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1
+    }
+  }
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -31,22 +39,22 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Index />} />
+              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
               <Route path="/login" element={<LoginPage />} />
               
               {/* Protected Admin Routes */}
-              <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
-              <Route path="/admin/webhooks" element={<ProtectedRoute requireAdmin><AdminWebhooks /></ProtectedRoute>} />
-              <Route path="/admin/webhooks/new" element={<ProtectedRoute requireAdmin><WebhookFormPage /></ProtectedRoute>} />
-              <Route path="/admin/webhooks/:id/edit" element={<ProtectedRoute requireAdmin><WebhookFormPage /></ProtectedRoute>} />
-              <Route path="/admin/categories" element={<ProtectedRoute requireAdmin><AdminCategories /></ProtectedRoute>} />
-              <Route path="/admin/categories/new" element={<ProtectedRoute requireAdmin><AdminCategoryForm /></ProtectedRoute>} />
-              <Route path="/admin/categories/:id/edit" element={<ProtectedRoute requireAdmin><EditCategoryPage /></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute requireAdmin autoLogin><AdminDashboard /></ProtectedRoute>} />
+              <Route path="/admin/webhooks" element={<ProtectedRoute requireAdmin autoLogin><AdminWebhooks /></ProtectedRoute>} />
+              <Route path="/admin/webhooks/new" element={<ProtectedRoute requireAdmin autoLogin><WebhookFormPage /></ProtectedRoute>} />
+              <Route path="/admin/webhooks/:id/edit" element={<ProtectedRoute requireAdmin autoLogin><WebhookFormPage /></ProtectedRoute>} />
+              <Route path="/admin/categories" element={<ProtectedRoute requireAdmin autoLogin><AdminCategories /></ProtectedRoute>} />
+              <Route path="/admin/categories/new" element={<ProtectedRoute requireAdmin autoLogin><AdminCategoryForm /></ProtectedRoute>} />
+              <Route path="/admin/categories/:id/edit" element={<ProtectedRoute requireAdmin autoLogin><EditCategoryPage /></ProtectedRoute>} />
               
               {/* Protected User Routes */}
-              <Route path="/webhooks/:id" element={<WebhookPage />} />
-              <Route path="/categories" element={<ProtectedRoute><CategoriesPage /></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+              <Route path="/webhooks/:id" element={<ProtectedRoute autoLogin><WebhookPage /></ProtectedRoute>} />
+              <Route path="/categories" element={<ProtectedRoute autoLogin><CategoriesPage /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute autoLogin><SettingsPage /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

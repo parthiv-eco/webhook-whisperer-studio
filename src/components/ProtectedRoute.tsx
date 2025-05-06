@@ -1,15 +1,24 @@
+
 import { ReactNode } from "react";
-import { Navigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useSessionManager } from "@/hooks/useSessionManager";
 import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: ReactNode;
   requireAdmin?: boolean;
+  autoLogin?: boolean;
 }
 
-const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps) => {
-  const { isAuthenticated, isAdmin, isLoading } = useAuth();
+const ProtectedRoute = ({ 
+  children, 
+  requireAdmin = false,
+  autoLogin = false
+}: ProtectedRouteProps) => {
+  const { isLoading, isAuthChecked, isAuthorized } = useSessionManager({
+    requireAuth: true,
+    requireAdmin,
+    autoLogin
+  });
 
   if (isLoading) {
     return (
@@ -22,16 +31,11 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
     );
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" />;
+  if (!isAuthChecked) {
+    return null;
   }
 
-  // Check if the route requires admin privileges
-  if (requireAdmin && !isAdmin) {
-    return <Navigate to="/" />;
-  }
-
-  return <>{children}</>;
+  return isAuthorized ? <>{children}</> : null;
 };
 
 export default ProtectedRoute;

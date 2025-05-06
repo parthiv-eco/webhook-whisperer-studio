@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,9 +14,17 @@ import { Badge } from "@/components/ui/badge";
 const AdminHeader = () => {
   const { isAuthenticated, isAdmin, logout } = useAuth();
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
   return (
     <div className="flex items-center gap-4">
-      {isAdmin && (
+      {isAdmin && isAuthenticated && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="flex items-center gap-1">
@@ -47,7 +56,7 @@ const AdminHeader = () => {
       )}
       
       {isAuthenticated ? (
-        <Button variant="outline" size="sm" onClick={logout} className="flex items-center gap-1">
+        <Button variant="outline" size="sm" onClick={handleLogout} className="flex items-center gap-1">
           <LogOut size={16} />
           Logout
         </Button>
