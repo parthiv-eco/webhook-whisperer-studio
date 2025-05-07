@@ -68,8 +68,13 @@ const AdminWebhookForm = () => {
       } else {
         // Create new webhook with required properties
         await addWebhook({
-          ...values,
-          headers: [],
+          name: values.name,  // Make sure all required properties are non-optional
+          description: values.description || "", 
+          url: values.url,
+          method: values.method,
+          categoryId: values.categoryId,
+          defaultPayload: values.defaultPayload || "",
+          headers: [],  // Provide empty arrays for required array properties
           examplePayloads: []
         });
         toast.success("Webhook created successfully!");

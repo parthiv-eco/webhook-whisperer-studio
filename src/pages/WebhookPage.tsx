@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
@@ -36,8 +35,8 @@ const WebhookPage = () => {
   }
 
   const handleExecute = () => {
-    if (webhook) {
-      executeWebhook(webhook.id, editorContent);
+    if (webhook && id) {
+      executeWebhook(id, editorContent);
     }
   };
 

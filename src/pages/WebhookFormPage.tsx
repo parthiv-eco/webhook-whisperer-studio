@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -100,8 +99,17 @@ const WebhookFormPage = () => {
         // await updateWebhook(id, values);
         // toast.success("Webhook updated successfully!");
       } else {
-        // Create new webhook
-        await addWebhook(values);
+        // Create new webhook - Ensure all required properties are provided
+        await addWebhook({
+          name: values.name, // Ensure these are non-optional
+          description: values.description,
+          url: values.url,
+          method: values.method,
+          categoryId: values.categoryId,
+          defaultPayload: values.defaultPayload,
+          headers: values.headers,
+          examplePayloads: values.examplePayloads
+        });
         toast.success("Webhook created successfully!");
       }
       navigate("/admin/webhooks");
