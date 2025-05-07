@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -101,14 +102,21 @@ const WebhookFormPage = () => {
       } else {
         // Create new webhook - Ensure all required properties are provided
         await addWebhook({
-          name: values.name, // Ensure these are non-optional
-          description: values.description,
-          url: values.url,
-          method: values.method,
-          categoryId: values.categoryId,
-          defaultPayload: values.defaultPayload,
-          headers: values.headers,
-          examplePayloads: values.examplePayloads
+          name: values.name, // Required field
+          description: values.description || "", // Provide default value if empty
+          url: values.url, // Required field
+          method: values.method, // Required field
+          categoryId: values.categoryId, // Required field
+          defaultPayload: values.defaultPayload || "", // Provide default value if empty
+          headers: values.headers.map(header => ({
+            key: header.key || "", // Ensure key is never undefined
+            value: header.value || "", // Ensure value is never undefined
+            enabled: header.enabled ?? true // Default to enabled if undefined
+          })),
+          examplePayloads: values.examplePayloads.map(payload => ({
+            name: payload.name || "", // Ensure name is never undefined
+            payload: payload.payload || "{}" // Ensure payload is never undefined
+          }))
         });
         toast.success("Webhook created successfully!");
       }

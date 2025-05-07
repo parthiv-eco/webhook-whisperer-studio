@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useApp } from "@/contexts/AppContext";
-import { WebhookMethods } from "@/types";
+import { WebhookMethod } from "@/types";
 import { toast } from "sonner";
 
 const formSchema = z.object({
@@ -68,14 +68,14 @@ const AdminWebhookForm = () => {
       } else {
         // Create new webhook with required properties
         await addWebhook({
-          name: values.name,  // Make sure all required properties are non-optional
+          name: values.name,  // Required property
           description: values.description || "", 
-          url: values.url,
-          method: values.method,
-          categoryId: values.categoryId,
+          url: values.url,  // Required property
+          method: values.method,  // Required property
+          categoryId: values.categoryId,  // Required property
           defaultPayload: values.defaultPayload || "",
-          headers: [],  // Provide empty arrays for required array properties
-          examplePayloads: []
+          headers: [],  // Empty array with correct structure
+          examplePayloads: []  // Empty array with correct structure
         });
         toast.success("Webhook created successfully!");
       }
