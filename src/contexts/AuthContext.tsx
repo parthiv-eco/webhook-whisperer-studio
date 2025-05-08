@@ -3,12 +3,6 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-// Hardcoded demo credentials
-const ADMIN_EMAIL = "admin@example.com";
-const ADMIN_PASSWORD = "admin123";
-const USER_EMAIL = "user@example.com";
-const USER_PASSWORD = "user123";
-
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -33,14 +27,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (demoSession) {
           try {
             const sessionData = JSON.parse(demoSession);
-            const isAdminUser = sessionData.email === ADMIN_EMAIL;
-            const isRegularUser = sessionData.email === USER_EMAIL;
             
-            if (isAdminUser || isRegularUser) {
+            // Validate the stored session by checking if the email exists in our db
+            const { data } = await supabase
+              .from('demo_credentials')
+              .select('role')
+              .eq('email', sessionData.email)
+              .single();
+            
+            if (data) {
               setIsAuthenticated(true);
-              setIsAdmin(isAdminUser);
+              setIsAdmin(data.role === 'admin');
               setIsLoading(false);
               return;
+            } else {
+              // Invalid email in session, remove it
+              localStorage.removeItem("demoSession");
             }
           } catch (e) {
             // Invalid session data, remove it
@@ -54,12 +56,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session) {
           setIsAuthenticated(true);
-          setIsAdmin(session.user.email === ADMIN_EMAIL);
           
-          // Store session if it's a demo user
-          if (session.user.email === ADMIN_EMAIL || session.user.email === USER_EMAIL) {
+          // Check if the user is an admin
+          const { data: userData } = await supabase
+            .from('demo_credentials')
+            .select('role')
+            .eq('email', session.user.email)
+            .single();
+          
+          setIsAdmin(userData?.role === 'admin');
+          
+          // Store session if it matches a demo user
+          const { data: demoUser } = await supabase
+            .from('demo_credentials')
+            .select('email, role')
+            .eq('email', session.user.email)
+            .single();
+            
+          if (demoUser) {
             localStorage.setItem("demoSession", JSON.stringify({
-              email: session.user.email,
+              email: demoUser.email,
               timestamp: new Date().toISOString()
             }));
           }
@@ -85,18 +101,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log("Auth state changed:", event, session);
       if (event === 'SIGNED_IN') {
         setIsAuthenticated(true);
-        if (session?.user.email === ADMIN_EMAIL) {
-          setIsAdmin(true);
-          localStorage.setItem("demoSession", JSON.stringify({
-            email: session.user.email,
-            timestamp: new Date().toISOString()
-          }));
-        } else if (session?.user.email === USER_EMAIL) {
-          setIsAdmin(false);
-          localStorage.setItem("demoSession", JSON.stringify({
-            email: session.user.email,
-            timestamp: new Date().toISOString()
-          }));
+        
+        if (session?.user.email) {
+          // Check if the user is a demo user and get their role
+          const { data } = await supabase
+            .from('demo_credentials')
+            .select('role')
+            .eq('email', session.user.email)
+            .single();
+          
+          if (data) {
+            setIsAdmin(data.role === 'admin');
+            localStorage.setItem("demoSession", JSON.stringify({
+              email: session.user.email,
+              timestamp: new Date().toISOString()
+            }));
+          } else {
+            setIsAdmin(false);
+          }
         }
       } else if (event === 'SIGNED_OUT') {
         setIsAuthenticated(false);
@@ -117,46 +139,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // For demo admin user
-      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        // Persist admin session
+      // Check demo credentials using our Supabase function
+      const { data, error } = await supabase.rpc('check_demo_credentials', {
+        p_email: email,
+        p_password: password
+      });
+      
+      if (error) throw error;
+      
+      // If credentials are valid (function returns a row)
+      if (data && data.length > 0 && data[0].is_valid) {
+        // Store demo session
         localStorage.setItem("demoSession", JSON.stringify({
-          email: ADMIN_EMAIL,
+          email,
           timestamp: new Date().toISOString()
         }));
 
         // Set authenticated state
         setIsAuthenticated(true);
-        setIsAdmin(true);
+        setIsAdmin(data[0].user_role === 'admin');
         
-        toast.success("Logged in successfully as admin");
+        toast.success(`Logged in successfully as ${data[0].user_role}`);
         return;
       }
       
-      // For demo regular user
-      if (email === USER_EMAIL && password === USER_PASSWORD) {
-        // Persist user session
-        localStorage.setItem("demoSession", JSON.stringify({
-          email: USER_EMAIL,
-          timestamp: new Date().toISOString()
-        }));
-
-        // Set authenticated state
-        setIsAuthenticated(true);
-        setIsAdmin(false);
-        
-        toast.success("Logged in successfully as regular user");
-        return;
-      }
-      
-      // For non-demo users, use regular Supabase auth
-      const { error } = await supabase.auth.signInWithPassword({
+      // If no demo credentials match, try regular Supabase auth
+      const authResult = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        throw error;
+      if (authResult.error) {
+        throw authResult.error;
       }
       
       toast.success("Logged in successfully");

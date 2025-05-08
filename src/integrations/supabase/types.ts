@@ -33,6 +33,33 @@ export type Database = {
         }
         Relationships: []
       }
+      demo_credentials: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          password: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          password: string
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          password?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
           content: string | null
@@ -144,6 +171,13 @@ export type Database = {
       binary_quantize: {
         Args: { "": string } | { "": unknown }
         Returns: unknown
+      }
+      check_demo_credentials: {
+        Args: { p_email: string; p_password: string }
+        Returns: {
+          is_valid: boolean
+          user_role: string
+        }[]
       }
       halfvec_avg: {
         Args: { "": number[] }
