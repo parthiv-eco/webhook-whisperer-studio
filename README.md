@@ -1,118 +1,73 @@
-# Webhook Whisperer Studio
+# Welcome to your Lovable project
 
-A powerful webhook testing and management platform.
+## Project info
 
-## Quick Start
+**URL**: https://lovable.dev/projects/6aaa98ea-d9c3-4d97-b56f-faca6e37e6d1
 
-1. Create a new Supabase project at [supabase.com](https://supabase.com)
+## How can I edit this code?
 
-2. Copy `.env.example` to `.env`:
-```bash
-cp .env.example .env
-```
+There are several ways of editing your application.
 
-3. Fill in your Supabase credentials in `.env`:
-```
-VITE_SUPABASE_URL=your_project_url
-VITE_SUPABASE_ANON_KEY=your_anon_key
-VITE_SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-```
+**Use Lovable**
 
-4. Install dependencies:
-```bash
-npm install
-```
+Simply visit the [Lovable Project](https://lovable.dev/projects/6aaa98ea-d9c3-4d97-b56f-faca6e37e6d1) and start prompting.
 
-5. Run the Supabase setup script:
-```bash
-npm run setup:supabase
-```
+Changes made via Lovable will be committed automatically to this repo.
 
-6. Start the development server:
-```bash
+**Use your preferred IDE**
+
+If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+
+The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+
+Follow these steps:
+
+```sh
+# Step 1: Clone the repository using the project's Git URL.
+git clone <YOUR_GIT_URL>
+
+# Step 2: Navigate to the project directory.
+cd <YOUR_PROJECT_NAME>
+
+# Step 3: Install the necessary dependencies.
+npm i
+
+# Step 4: Start the development server with auto-reloading and an instant preview.
 npm run dev
 ```
 
-## Environment Variables
+**Edit a file directly in GitHub**
 
-- `VITE_SUPABASE_URL`: Your Supabase project URL
-- `VITE_SUPABASE_ANON_KEY`: Your Supabase project's anon/public key
-- `VITE_SUPABASE_SERVICE_ROLE_KEY`: Your Supabase project's service role key (needed for setup)
-- `VITE_ENV`: Environment name (optional, defaults to 'development')
+- Navigate to the desired file(s).
+- Click the "Edit" button (pencil icon) at the top right of the file view.
+- Make your changes and commit the changes.
 
-## Features
+**Use GitHub Codespaces**
 
-- Create and manage webhook endpoints
-- Organize webhooks into categories
-- Test webhooks with custom payloads
-- View webhook response history
-- Secure authentication
-- Row-level security
-- CORS-free webhook execution
+- Navigate to the main page of your repository.
+- Click on the "Code" button (green button) near the top right.
+- Select the "Codespaces" tab.
+- Click on "New codespace" to launch a new Codespace environment.
+- Edit files directly within the Codespace and commit and push your changes once you're done.
 
-## Development
+## What technologies are used for this project?
 
-1. Install dependencies:
-```bash
-npm install
-```
+This project is built with:
 
-2. Start the development server:
-```bash
-npm run dev
-```
+- Vite
+- TypeScript
+- React
+- shadcn-ui
+- Tailwind CSS
 
-3. Build for production:
-```bash
-npm run build
-```
+## How can I deploy this project?
 
-## Database Structure
+Simply open [Lovable](https://lovable.dev/projects/6aaa98ea-d9c3-4d97-b56f-faca6e37e6d1) and click on Share -> Publish.
 
-The application uses three main tables:
+## Can I connect a custom domain to my Lovable project?
 
-### Categories
-- `id`: UUID (Primary Key)
-- `name`: Text
-- `description`: Text
-- `color`: Text
-- `created_at`: Timestamp
-- `user_id`: UUID (Foreign Key to auth.users)
+Yes, you can!
 
-### Webhooks
-- `id`: UUID (Primary Key)
-- `category_id`: UUID (Foreign Key to categories)
-- `name`: Text
-- `description`: Text
-- `url`: Text
-- `method`: Text
-- `headers`: JSONB
-- `default_payload`: Text
-- `example_payloads`: JSONB
-- `created_at`: Timestamp
-- `user_id`: UUID (Foreign Key to auth.users)
+To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
-### Webhook Responses
-- `id`: UUID (Primary Key)
-- `webhook_id`: UUID (Foreign Key to webhooks)
-- `status`: Integer
-- `status_text`: Text
-- `headers`: JSONB
-- `data`: JSONB
-- `timestamp`: Timestamp
-- `user_id`: UUID (Foreign Key to auth.users)
-
-## Security
-
-The application uses Supabase Row Level Security (RLS) policies to ensure:
-- Only authenticated users can read data
-- Users can only modify their own data
-- Webhook responses are associated with the executing user
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a new Pull Request
+Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)

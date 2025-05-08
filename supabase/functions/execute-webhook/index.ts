@@ -1,5 +1,4 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { corsHeaders } from '../_shared/cors.ts'
 
 interface WebhookRequest {
   url: string
@@ -8,32 +7,23 @@ interface WebhookRequest {
   payload?: string
 }
 
-interface ErrorResponse {
-  error: string
-  details?: string
-  status?: number
-}
-
 serve(async (req) => {
   try {
-    // Handle CORS preflight
+    // Handle CORS
     if (req.method === 'OPTIONS') {
-      return new Response('ok', { headers: corsHeaders })
-    }
-
-    // Validate request
-    if (!req.body) {
-      throw new Error('Request body is required')
+      return new Response('ok', {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST',
+          'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        }
+      })
     }
 
     const { url, method, headers, payload } = await req.json() as WebhookRequest
 
     if (!url) {
       throw new Error('URL is required')
-    }
-
-    if (!method) {
-      throw new Error('Method is required')
     }
 
     // Execute the webhook
@@ -54,13 +44,15 @@ serve(async (req) => {
       if (contentType?.includes('application/json')) {
         responseData = await response.json()
       } else {
+        // For non-JSON responses, get text content
         responseData = await response.text()
       }
     } catch (error) {
+      // If parsing fails, get the raw text
       responseData = await response.text()
     }
 
-    // Return the response with proper headers
+    // Return the response
     return new Response(
       JSON.stringify({
         status: response.status,
@@ -72,27 +64,22 @@ serve(async (req) => {
       {
         headers: {
           'Content-Type': 'application/json',
-          ...corsHeaders
+          'Access-Control-Allow-Origin': '*'
         }
       }
     )
-  } catch (error: any) {
-    const errorResponse: ErrorResponse = {
-      error: error.message || 'Unknown error occurred',
-      status: 500
-    }
-
-    if (error.cause) {
-      errorResponse.details = error.cause.message
-    }
-
+  } catch (error) {
+    console.error('Edge function error:', error)
     return new Response(
-      JSON.stringify(errorResponse),
+      JSON.stringify({
+        error: error.message || 'Unknown error occurred',
+        details: error.toString()
+      }),
       {
-        status: errorResponse.status || 500,
+        status: 500,
         headers: {
           'Content-Type': 'application/json',
-          ...corsHeaders
+          'Access-Control-Allow-Origin': '*'
         }
       }
     )

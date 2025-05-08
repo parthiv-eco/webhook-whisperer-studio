@@ -335,45 +335,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const executeWebhook = async (webhookId: string, payload?: string): Promise<void> => {
     try {
-      toast.info("Sending webhook request...");
-      
-      const { data, error } = await supabase.functions.invoke('execute-webhook', {
-        body: {
-          url: webhook.url,
-          method: webhook.method,
-          headers: webhook.headers.reduce((acc, header) => {
-            if (header.enabled) {
-              acc[header.key] = header.value;
-            }
-            return acc;
-          }, {} as Record<string, string>),
-          payload
-        }
-      });
-
-      if (error) throw error;
-
-      // Store the response in state
-      setResponses({
-        ...responses,
-        [webhook.id]: data
-      });
-
-      // Store the response in Supabase if authenticated
-      if (isAuthenticated) {
-        await supabase.from('webhook_responses').insert({
-          webhook_id: webhook.id,
-          status: data.status,
-          status_text: data.statusText,
-          headers: data.headers,
-          data: data.data,
-          timestamp: data.timestamp
-        });
-      }
-
-      toast.success("Webhook executed successfully!");
-      return data;
-    } catch (error: any) {
       const webhook = webhooks.find(w => w.id === webhookId);
       if (!webhook) {
         throw new Error("Webhook not found");
@@ -403,6 +364,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.log('Headers:', headers);
       console.log('Payload:', requestPayload);
       
+<<<<<<< Updated upstream
       // Send the actual HTTP request
       const response = await fetch(webhook.url, {
         method: webhook.method,
@@ -456,6 +418,81 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Update local state with the new response
       setResponses(prev => [webhookResponse, ...prev]);
       
+=======
+      if (error) throw error;
+      
+      setWebhooks(webhooks.map(w => w.id === webhook.id ? webhook : w));
+      toast.success("Webhook updated successfully");
+    } catch (error: any) {
+      console.error("Error updating webhook:", error);
+      toast.error(`Failed to update webhook: ${error.message}`);
+    }
+  };
+
+  const deleteWebhook = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('webhooks')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      setWebhooks(webhooks.filter(w => w.id !== id));
+      
+      // Also remove any stored response
+      const newResponses = { ...responses };
+      delete newResponses[id];
+      setResponses(newResponses);
+      
+      toast.success("Webhook deleted successfully");
+    } catch (error: any) {
+      console.error("Error deleting webhook:", error);
+      toast.error(`Failed to delete webhook: ${error.message}`);
+    }
+  };
+
+  const executeWebhook = async (webhook: Webhook, payload: string): Promise<WebhookResponse | null> => {
+    try {
+      toast.info("Sending webhook request...");
+      
+      const { data, error } = await supabase.functions.invoke('execute-webhook', {
+        body: {
+          url: webhook.url,
+          method: webhook.method,
+          headers: webhook.headers.reduce((acc, header) => {
+            if (header.enabled) {
+              acc[header.key] = header.value;
+            }
+            return acc;
+          }, {} as Record<string, string>),
+          payload
+        }
+      });
+
+      if (error) throw error;
+
+      // Store the response in state
+      setResponses({
+        ...responses,
+        [webhook.id]: data
+      });
+
+      // Store the response in Supabase if authenticated
+      if (isAuthenticated) {
+        await supabase.from('webhook_responses').insert({
+          webhook_id: webhook.id,
+          status: data.status,
+          status_text: data.statusText,
+          headers: data.headers,
+          data: data.data,
+          timestamp: data.timestamp
+        });
+      }
+
+      toast.success("Webhook executed successfully!");
+      return data;
+>>>>>>> Stashed changes
     } catch (error: any) {
       console.error("Error executing webhook:", error);
       toast.error(`Failed to execute webhook: ${error.message}`);
@@ -478,7 +515,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addCategory,
     updateCategory,
     executeWebhook,
+<<<<<<< Updated upstream
+=======
     responses,
+>>>>>>> Stashed changes
     clearResponse
   };
 
