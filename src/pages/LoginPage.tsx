@@ -13,10 +13,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const LoginPage = () => {
   const { login, isAuthenticated, isAdmin, isLoading } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("admin@example.com");
-  const [password, setPassword] = useState("admin123");
-  const [userEmail, setUserEmail] = useState("user@example.com");
-  const [userPassword, setUserPassword] = useState("user123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [userPassword, setUserPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showUserPassword, setShowUserPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,11 +110,6 @@ const LoginPage = () => {
                   </div>
                 </div>
                 
-                <div className="text-center text-sm text-muted-foreground">
-                  <p>Admin demo credentials (pre-filled):</p>
-                  <p className="font-mono mt-1">admin@example.com / admin123</p>
-                </div>
-                
                 <Button 
                   type="submit"
                   className="w-full mt-4" 
@@ -159,11 +154,6 @@ const LoginPage = () => {
                       {showUserPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </Button>
                   </div>
-                </div>
-                
-                <div className="text-center text-sm text-muted-foreground">
-                  <p>User demo credentials (pre-filled):</p>
-                  <p className="font-mono mt-1">user@example.com / user123</p>
                 </div>
                 
                 <Button 
