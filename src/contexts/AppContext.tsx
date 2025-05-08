@@ -335,6 +335,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const executeWebhook = async (webhookId: string, payload?: string): Promise<void> => {
     try {
+      toast.info("Sending webhook request...");
+      
+      const { data, error } = await supabase.functions.invoke('execute-webhook', {
+        body: {
+          url: webhook.url,
+          method: webhook.method,
+          headers: webhook.headers.reduce((acc, header) => {
+            if (header.enabled) {
+              acc[header.key] = header.value;
+            }
+            return acc;
+          }, {} as Record<string, string>),
+          payload
+        }
+      });
+
+      if (error) throw error;
+
+      // Store the response in state
+      setResponses({
+        ...responses,
+        [webhook.id]: data
+      });
+
+      // Store the response in Supabase if authenticated
+      if (isAuthenticated) {
+        await supabase.from('webhook_responses').insert({
+          webhook_id: webhook.id,
+          status: data.status,
+          status_text: data.statusText,
+          headers: data.headers,
+          data: data.data,
+          timestamp: data.timestamp
+        });
+      }
+
+      toast.success("Webhook executed successfully!");
+      return data;
+    } catch (error: any) {
       const webhook = webhooks.find(w => w.id === webhookId);
       if (!webhook) {
         throw new Error("Webhook not found");
@@ -439,15 +478,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addCategory,
     updateCategory,
     executeWebhook,
+    responses,
     clearResponse
   };
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={value}>
+      {children}
+    </AppContext.Provider>
+  );
 };
 
-export const useApp = () => {
+export const useApp = (): AppContextType => {
   const context = useContext(AppContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useApp must be used within an AppProvider");
   }
   return context;

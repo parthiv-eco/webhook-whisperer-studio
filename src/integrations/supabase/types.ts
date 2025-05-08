@@ -6,272 +6,127 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type Database = {
+export interface Database {
   public: {
     Tables: {
       categories: {
         Row: {
-          color: string | null
-          created_at: string
-          description: string | null
           id: string
           name: string
+          description: string | null
+          color: string
+          created_at: string
+          user_id: string | null
         }
         Insert: {
-          color?: string | null
-          created_at?: string
-          description?: string | null
           id?: string
           name: string
+          description?: string | null
+          color?: string
+          created_at?: string
+          user_id?: string | null
         }
         Update: {
-          color?: string | null
-          created_at?: string
-          description?: string | null
           id?: string
           name?: string
-        }
-        Relationships: []
-      }
-      demo_credentials: {
-        Row: {
-          created_at: string
-          email: string
-          id: string
-          password: string
-          role: string
-          updated_at: string
-        }
-        Insert: {
+          description?: string | null
+          color?: string
           created_at?: string
-          email: string
-          id?: string
-          password: string
-          role?: string
-          updated_at?: string
+          user_id?: string | null
         }
-        Update: {
-          created_at?: string
-          email?: string
-          id?: string
-          password?: string
-          role?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      documents: {
-        Row: {
-          content: string | null
-          embedding: string | null
-          id: number
-        }
-        Insert: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-        }
-        Update: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-        }
-        Relationships: []
-      }
-      webhook_responses: {
-        Row: {
-          data: Json | null
-          headers: Json
-          id: string
-          status: number
-          status_text: string
-          timestamp: string
-          webhook_id: string
-        }
-        Insert: {
-          data?: Json | null
-          headers: Json
-          id?: string
-          status: number
-          status_text: string
-          timestamp?: string
-          webhook_id: string
-        }
-        Update: {
-          data?: Json | null
-          headers?: Json
-          id?: string
-          status?: number
-          status_text?: string
-          timestamp?: string
-          webhook_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "webhook_responses_webhook_id_fkey"
-            columns: ["webhook_id"]
-            isOneToOne: false
-            referencedRelation: "webhooks"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       webhooks: {
         Row: {
-          category_id: string | null
-          created_at: string
-          default_payload: string | null
-          description: string | null
-          example_payloads: Json
-          headers: Json
           id: string
-          method: string
+          category_id: string | null
           name: string
+          description: string | null
           url: string
+          method: string
+          headers: Json
+          default_payload: string | null
+          example_payloads: Json
+          created_at: string
+          user_id: string | null
         }
         Insert: {
-          category_id?: string | null
-          created_at?: string
-          default_payload?: string | null
-          description?: string | null
-          example_payloads?: Json
-          headers?: Json
           id?: string
-          method: string
+          category_id?: string | null
           name: string
+          description?: string | null
           url: string
+          method: string
+          headers?: Json
+          default_payload?: string | null
+          example_payloads?: Json
+          created_at?: string
+          user_id?: string | null
         }
         Update: {
-          category_id?: string | null
-          created_at?: string
-          default_payload?: string | null
-          description?: string | null
-          example_payloads?: Json
-          headers?: Json
           id?: string
-          method?: string
+          category_id?: string | null
           name?: string
+          description?: string | null
           url?: string
+          method?: string
+          headers?: Json
+          default_payload?: string | null
+          example_payloads?: Json
+          created_at?: string
+          user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "webhooks_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-        ]
+      }
+      webhook_responses: {
+        Row: {
+          id: string
+          webhook_id: string
+          status: number
+          status_text: string | null
+          headers: Json | null
+          data: Json | null
+          timestamp: string
+          user_id: string | null
+        }
+        Insert: {
+          id?: string
+          webhook_id: string
+          status: number
+          status_text?: string | null
+          headers?: Json | null
+          data?: Json | null
+          timestamp?: string
+          user_id?: string | null
+        }
+        Update: {
+          id?: string
+          webhook_id?: string
+          status?: number
+          status_text?: string | null
+          headers?: Json | null
+          data?: Json | null
+          timestamp?: string
+          user_id?: string | null
+        }
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      binary_quantize: {
-        Args: { "": string } | { "": unknown }
-        Returns: unknown
+      setup_categories_table: {
+        Args: Record<PropertyKey, never>
+        Returns: void
       }
-      check_demo_credentials: {
-        Args: { p_email: string; p_password: string }
-        Returns: {
-          is_valid: boolean
-          user_role: string
-        }[]
+      setup_webhooks_table: {
+        Args: Record<PropertyKey, never>
+        Returns: void
       }
-      halfvec_avg: {
-        Args: { "": number[] }
-        Returns: unknown
-      }
-      halfvec_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      halfvec_send: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      halfvec_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
-      }
-      hnsw_bit_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnsw_halfvec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnsw_sparsevec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnswhandler: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflat_bit_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflat_halfvec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflathandler: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      l2_norm: {
-        Args: { "": unknown } | { "": unknown }
-        Returns: number
-      }
-      l2_normalize: {
-        Args: { "": string } | { "": unknown } | { "": unknown }
-        Returns: unknown
-      }
-      sparsevec_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      sparsevec_send: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      sparsevec_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
-      }
-      vector_avg: {
-        Args: { "": number[] }
-        Returns: string
-      }
-      vector_dims: {
-        Args: { "": string } | { "": unknown }
-        Returns: number
-      }
-      vector_norm: {
-        Args: { "": string }
-        Returns: number
-      }
-      vector_out: {
-        Args: { "": string }
-        Returns: unknown
-      }
-      vector_send: {
-        Args: { "": string }
-        Returns: string
-      }
-      vector_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
+      setup_webhook_responses_table: {
+        Args: Record<PropertyKey, never>
+        Returns: void
       }
     }
     Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
       [_ in never]: never
     }
   }
