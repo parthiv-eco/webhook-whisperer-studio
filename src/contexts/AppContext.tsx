@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { WebhookCategory, Webhook, WebhookResponse, WebhookMethod, WebhookHeader } from "@/types";
@@ -344,24 +343,84 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Use the provided payload or default payload
       const requestPayload = payload || webhook.defaultPayload;
       
-      // Simulate webhook execution
-      const response: WebhookResponse = {
-        id: uuidv4(),
+      // Generate a unique ID for this response
+      const responseId = uuidv4();
+      
+      // Create headers object from webhook configuration
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Add custom headers from webhook configuration
+      if (webhook.headers && Array.isArray(webhook.headers)) {
+        webhook.headers
+          .filter(h => h.enabled)
+          .forEach(header => {
+            headers[header.key] = header.value;
+          });
+      }
+      
+      console.log(`Executing webhook: ${webhook.method} ${webhook.url}`);
+      console.log('Headers:', headers);
+      console.log('Payload:', requestPayload);
+      
+      // Send the actual HTTP request
+      const response = await fetch(webhook.url, {
+        method: webhook.method,
+        headers: headers,
+        body: webhook.method !== 'GET' ? requestPayload : undefined,
+      });
+      
+      // Parse response
+      let responseData;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        responseData = await response.json();
+      } else {
+        responseData = await response.text();
+      }
+      
+      // Convert headers to a plain object
+      const responseHeaders: Record<string, string> = {};
+      response.headers.forEach((value, key) => {
+        responseHeaders[key] = value;
+      });
+      
+      // Create WebhookResponse object
+      const webhookResponse: WebhookResponse = {
+        id: responseId,
         webhookId,
-        status: 200,
-        statusText: "OK",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        data: { message: "Webhook executed successfully", timestamp: new Date().toISOString() },
+        status: response.status,
+        statusText: response.statusText,
+        headers: responseHeaders,
+        data: responseData,
         timestamp: new Date().toISOString()
       };
-
-      // Save response to state
-      setResponses(prev => [response, ...prev]);
+      
+      // Save response in Supabase
+      const { error } = await supabase
+        .from('webhook_responses')
+        .insert([{
+          id: responseId,
+          webhook_id: webhookId,
+          status: response.status,
+          status_text: response.statusText,
+          headers: responseHeaders,
+          data: responseData,
+          timestamp: new Date().toISOString()
+        }]);
+        
+      if (error) {
+        console.error("Error saving webhook response:", error);
+      }
+      
+      // Update local state with the new response
+      setResponses(prev => [webhookResponse, ...prev]);
+      
     } catch (error: any) {
       console.error("Error executing webhook:", error);
       toast.error(`Failed to execute webhook: ${error.message}`);
+      throw error;
     }
   };
 
