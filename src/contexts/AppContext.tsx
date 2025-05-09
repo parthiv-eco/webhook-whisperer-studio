@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { WebhookCategory, Webhook, WebhookResponse, WebhookMethod, WebhookHeader } from "@/types";
@@ -47,92 +48,98 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Fetch categories
       const { data: categoriesData, error: categoriesError } = await supabase
         .from("categories")
-        .select("*");
+        .select("*") as { data: any[] | null; error: Error | null };
 
       if (categoriesError) {
         throw categoriesError;
       }
 
       // Map categories to our app's format
-      const formattedCategories: WebhookCategory[] = categoriesData.map(cat => ({
-        id: cat.id,
-        name: cat.name,
-        description: cat.description,
-        color: cat.color || '#6E42CE',
-        createdAt: cat.created_at
-      }));
+      if (categoriesData) {
+        const formattedCategories: WebhookCategory[] = categoriesData.map(cat => ({
+          id: cat.id,
+          name: cat.name,
+          description: cat.description,
+          color: cat.color || '#6E42CE',
+          createdAt: cat.created_at
+        }));
 
-      setCategories(formattedCategories);
+        setCategories(formattedCategories);
+      }
 
       // Fetch webhooks
       const { data: webhooksData, error: webhooksError } = await supabase
         .from("webhooks")
-        .select("*");
+        .select("*") as { data: any[] | null; error: Error | null };
 
       if (webhooksError) {
         throw webhooksError;
       }
 
       // Map webhooks to our app's format
-      const formattedWebhooks: Webhook[] = webhooksData.map(hook => ({
-        id: hook.id,
-        name: hook.name,
-        description: hook.description,
-        url: hook.url,
-        method: hook.method as WebhookMethod,
-        categoryId: hook.category_id,
-        headers: Array.isArray(hook.headers) 
-          ? hook.headers.map((header: any) => ({
-              key: header.key || '',
-              value: header.value || '',
-              enabled: header.enabled !== false
-            }))
-          : [],
-        defaultPayload: hook.default_payload || '',
-        examplePayloads: Array.isArray(hook.example_payloads) 
-          ? hook.example_payloads.map((payload: any) => ({
-              name: payload.name || '',
-              payload: payload.payload || ''
-            }))
-          : [],
-        createdAt: hook.created_at
-      }));
+      if (webhooksData) {
+        const formattedWebhooks: Webhook[] = webhooksData.map(hook => ({
+          id: hook.id,
+          name: hook.name,
+          description: hook.description,
+          url: hook.url,
+          method: hook.method as WebhookMethod,
+          categoryId: hook.category_id,
+          headers: Array.isArray(hook.headers) 
+            ? hook.headers.map((header: any) => ({
+                key: header.key || '',
+                value: header.value || '',
+                enabled: header.enabled !== false
+              }))
+            : [],
+          defaultPayload: hook.default_payload || '',
+          examplePayloads: Array.isArray(hook.example_payloads) 
+            ? hook.example_payloads.map((payload: any) => ({
+                name: payload.name || '',
+                payload: payload.payload || ''
+              }))
+            : [],
+          createdAt: hook.created_at
+        }));
 
-      setWebhooks(formattedWebhooks);
+        setWebhooks(formattedWebhooks);
+      }
 
       // Fetch responses
       const { data: responsesData, error: responsesError } = await supabase
         .from("webhook_responses")
         .select("*")
         .order("timestamp", { ascending: false })
-        .limit(10);
+        .limit(10) as { data: any[] | null; error: Error | null };
 
       if (responsesError) {
         throw responsesError;
       }
 
       // Map responses to our app's format - fixing the type issues
-      const formattedResponses: WebhookResponse[] = responsesData.map(response => {
-        // Convert headers to Record<string, string> format
-        const stringHeaders: Record<string, string> = {};
-        if (typeof response.headers === 'object' && response.headers !== null) {
-          Object.entries(response.headers).forEach(([key, value]) => {
-            stringHeaders[key] = String(value);
-          });
-        }
-        
-        return {
-          id: response.id,
-          webhookId: response.webhook_id,
-          status: response.status,
-          statusText: response.status_text,
-          headers: stringHeaders,
-          data: response.data,
-          timestamp: response.timestamp
-        };
-      });
+      if (responsesData) {
+        const formattedResponses: WebhookResponse[] = responsesData.map(response => {
+          // Convert headers to Record<string, string> format
+          const stringHeaders: Record<string, string> = {};
+          if (typeof response.headers === 'object' && response.headers !== null) {
+            Object.entries(response.headers).forEach(([key, value]) => {
+              stringHeaders[key] = String(value);
+            });
+          }
+          
+          return {
+            id: response.id,
+            webhookId: response.webhook_id,
+            status: response.status,
+            statusText: response.status_text,
+            headers: stringHeaders,
+            data: response.data,
+            timestamp: response.timestamp
+          };
+        });
 
-      setResponses(formattedResponses);
+        setResponses(formattedResponses);
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
     }
@@ -157,10 +164,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .from("webhooks")
         .insert([webhookData])
         .select("*")
-        .single();
+        .single() as { data: any | null; error: Error | null };
 
       if (error) {
         throw error;
+      }
+
+      if (!data) {
+        throw new Error("No data returned from insert operation");
       }
 
       // Convert response to our app's format
@@ -213,7 +224,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { error } = await supabase
         .from("webhooks")
         .update(webhookData)
-        .eq("id", id);
+        .eq("id", id) as { error: Error | null };
 
       if (error) {
         throw error;
@@ -238,7 +249,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { error } = await supabase
         .from("webhooks")
         .delete()
-        .eq("id", id);
+        .eq("id", id) as { error: Error | null };
 
       if (error) {
         throw error;
@@ -265,10 +276,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .from("categories")
         .insert([categoryData])
         .select("*")
-        .single();
+        .single() as { data: any | null; error: Error | null };
 
       if (error) {
         throw error;
+      }
+
+      if (!data) {
+        throw new Error("No data returned from insert operation");
       }
 
       // Convert response to our app's format
@@ -300,7 +315,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { error } = await supabase
         .from("categories")
         .update(categoryData)
-        .eq("id", id);
+        .eq("id", id) as { error: Error | null };
 
       if (error) {
         throw error;
@@ -325,7 +340,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { error } = await supabase
         .from("categories")
         .delete()
-        .eq("id", id);
+        .eq("id", id) as { error: Error | null };
 
       if (error) {
         throw error;
@@ -413,7 +428,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           headers: responseHeaders,
           data: responseData,
           timestamp: new Date().toISOString()
-        }]);
+        }]) as { error: Error | null };
 
       if (error) {
         console.error("Error saving webhook response:", error);
