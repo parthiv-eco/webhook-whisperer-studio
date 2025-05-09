@@ -5,6 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
+// Load environment variables from .env file
+import.meta.env.VITE_SUPABASE_URL;
+import.meta.env.VITE_SUPABASE_ANON_KEY;
+import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
 type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
 
 interface AppContextType {
@@ -342,15 +347,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Use the provided payload or default payload
       const requestPayload = payload || webhook.defaultPayload;
-      
+
       // Generate a unique ID for this response
       const responseId = uuidv4();
-      
+
       // Create headers object from webhook configuration
       const headers: Record<string, string> = {
         'Content-Type': 'application/json'
       };
-      
+
       // Add custom headers from webhook configuration
       if (webhook.headers && Array.isArray(webhook.headers)) {
         webhook.headers
@@ -359,19 +364,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             headers[header.key] = header.value;
           });
       }
-      
+
       console.log(`Executing webhook: ${webhook.method} ${webhook.url}`);
       console.log('Headers:', headers);
       console.log('Payload:', requestPayload);
-      
-<<<<<<< Updated upstream
+
       // Send the actual HTTP request
       const response = await fetch(webhook.url, {
         method: webhook.method,
         headers: headers,
         body: webhook.method !== 'GET' ? requestPayload : undefined,
       });
-      
+
       // Parse response
       let responseData;
       const contentType = response.headers.get('content-type');
@@ -380,13 +384,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else {
         responseData = await response.text();
       }
-      
+
       // Convert headers to a plain object
       const responseHeaders: Record<string, string> = {};
       response.headers.forEach((value, key) => {
         responseHeaders[key] = value;
       });
-      
+
       // Create WebhookResponse object
       const webhookResponse: WebhookResponse = {
         id: responseId,
@@ -397,7 +401,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         data: responseData,
         timestamp: new Date().toISOString()
       };
-      
+
       // Save response in Supabase
       const { error } = await supabase
         .from('webhook_responses')
@@ -410,89 +414,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           data: responseData,
           timestamp: new Date().toISOString()
         }]);
-        
+
       if (error) {
         console.error("Error saving webhook response:", error);
       }
-      
+
       // Update local state with the new response
       setResponses(prev => [webhookResponse, ...prev]);
-      
-=======
-      if (error) throw error;
-      
-      setWebhooks(webhooks.map(w => w.id === webhook.id ? webhook : w));
-      toast.success("Webhook updated successfully");
-    } catch (error: any) {
-      console.error("Error updating webhook:", error);
-      toast.error(`Failed to update webhook: ${error.message}`);
-    }
-  };
-
-  const deleteWebhook = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('webhooks')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-      
-      setWebhooks(webhooks.filter(w => w.id !== id));
-      
-      // Also remove any stored response
-      const newResponses = { ...responses };
-      delete newResponses[id];
-      setResponses(newResponses);
-      
-      toast.success("Webhook deleted successfully");
-    } catch (error: any) {
-      console.error("Error deleting webhook:", error);
-      toast.error(`Failed to delete webhook: ${error.message}`);
-    }
-  };
-
-  const executeWebhook = async (webhook: Webhook, payload: string): Promise<WebhookResponse | null> => {
-    try {
-      toast.info("Sending webhook request...");
-      
-      const { data, error } = await supabase.functions.invoke('execute-webhook', {
-        body: {
-          url: webhook.url,
-          method: webhook.method,
-          headers: webhook.headers.reduce((acc, header) => {
-            if (header.enabled) {
-              acc[header.key] = header.value;
-            }
-            return acc;
-          }, {} as Record<string, string>),
-          payload
-        }
-      });
-
-      if (error) throw error;
-
-      // Store the response in state
-      setResponses({
-        ...responses,
-        [webhook.id]: data
-      });
-
-      // Store the response in Supabase if authenticated
-      if (isAuthenticated) {
-        await supabase.from('webhook_responses').insert({
-          webhook_id: webhook.id,
-          status: data.status,
-          status_text: data.statusText,
-          headers: data.headers,
-          data: data.data,
-          timestamp: data.timestamp
-        });
-      }
-
-      toast.success("Webhook executed successfully!");
-      return data;
->>>>>>> Stashed changes
     } catch (error: any) {
       console.error("Error executing webhook:", error);
       toast.error(`Failed to execute webhook: ${error.message}`);
@@ -515,10 +443,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addCategory,
     updateCategory,
     executeWebhook,
-<<<<<<< Updated upstream
-=======
-    responses,
->>>>>>> Stashed changes
     clearResponse
   };
 
