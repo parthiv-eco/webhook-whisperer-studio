@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "setup-admin": "node scripts/setup-admin.js",
-    "setup-supabase": "node scripts/setup-supabase.js"
+    "setup-supabase": "node scripts/setup-supabase.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
