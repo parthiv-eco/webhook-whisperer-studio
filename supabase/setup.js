@@ -1,9 +1,14 @@
 
 #!/usr/bin/env node
-const { createClient } = require('@supabase/supabase-js');
-const dotenv = require('dotenv');
-const fs = require('fs');
-const path = require('path');
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables
 dotenv.config();
@@ -25,22 +30,22 @@ async function setupDatabase() {
 
   try {
     // Check for categories table
-    const { error: checkCategoriesError, count: categoriesCount } = await supabase
+    const { error: checkCategoriesError } = await supabase
       .from('categories')
       .select('*', { count: 'exact', head: true });
 
     // Check for webhooks table
-    const { error: checkWebhooksError, count: webhooksCount } = await supabase
+    const { error: checkWebhooksError } = await supabase
       .from('webhooks')
       .select('*', { count: 'exact', head: true });
 
     // Check for webhook_responses table
-    const { error: checkResponsesError, count: responsesCount } = await supabase
+    const { error: checkResponsesError } = await supabase
       .from('webhook_responses')
       .select('*', { count: 'exact', head: true });
 
     // Check for demo_credentials table
-    const { error: checkCredsError, count: credsCount } = await supabase
+    const { error: checkCredsError } = await supabase
       .from('demo_credentials')
       .select('*', { count: 'exact', head: true });
 
@@ -58,19 +63,27 @@ async function setupDatabase() {
       if (fs.existsSync(sqlFilePath)) {
         const sqlCommands = fs.readFileSync(sqlFilePath, 'utf8');
         
-        // Execute SQL commands
-        const { error: sqlError } = await supabase.rpc('exec_sql', {
-          sql_commands: sqlCommands
-        });
+        // Check if exec_sql function exists
+        const hasExecSql = await createExecSqlFunction();
         
-        if (sqlError) {
-          console.error('Error executing SQL commands:', sqlError);
+        if (hasExecSql) {
+          // Execute SQL commands
+          const { error: sqlError } = await supabase.rpc('exec_sql', {
+            sql_commands: sqlCommands
+          });
           
-          // Try alternative approach - create tables directly
-          console.log('Attempting to create tables directly...');
-          await setupTablesDirectly();
+          if (sqlError) {
+            console.error('Error executing SQL commands:', sqlError);
+            
+            // Try alternative approach - create tables directly
+            console.log('Attempting to create tables directly...');
+            await setupTablesDirectly();
+          } else {
+            console.log('✅ Successfully created database tables and policies');
+          }
         } else {
-          console.log('✅ Successfully created database tables and policies');
+          console.log('Could not use exec_sql function, creating tables directly...');
+          await setupTablesDirectly();
         }
       } else {
         console.log('SQL file not found, creating tables directly...');
@@ -80,13 +93,25 @@ async function setupDatabase() {
       console.log('✅ Database tables already exist');
       
       // Check if demo data needs to be inserted
-      if (credsCount === 0) {
+      const { count: credsCount } = await supabase
+        .from('demo_credentials')
+        .select('*', { count: 'exact', head: true });
+      
+      if (!credsCount) {
         console.log('Seeding demo credentials...');
         await seedDemoCredentials();
       }
       
       // Check if sample webhooks and categories need to be inserted
-      if (categoriesCount === 0 || webhooksCount === 0) {
+      const { count: categoriesCount } = await supabase
+        .from('categories')
+        .select('*', { count: 'exact', head: true });
+        
+      const { count: webhooksCount } = await supabase
+        .from('webhooks')
+        .select('*', { count: 'exact', head: true });
+      
+      if (!categoriesCount || !webhooksCount) {
         console.log('Seeding sample data...');
         await seedSampleData();
       }
@@ -218,27 +243,6 @@ async function setupTablesDirectly() {
     
     if (credsError) console.error('Error creating demo_credentials table:', credsError);
     
-    // Add exec_sql function if it doesn't exist
-    const { error: execSqlError } = await supabase.rpc('exec_sql', {
-      sql_commands: `
-        CREATE OR REPLACE FUNCTION public.exec_sql(sql_commands TEXT)
-        RETURNS VOID
-        LANGUAGE plpgsql
-        SECURITY DEFINER
-        AS $$
-        BEGIN
-          EXECUTE sql_commands;
-        END;
-        $$;
-        
-        GRANT EXECUTE ON FUNCTION public.exec_sql TO service_role;
-      `
-    });
-    
-    if (execSqlError && execSqlError.message !== 'function exec_sql(text) does not exist') {
-      console.error('Error creating exec_sql function:', execSqlError);
-    }
-    
     // Seed demo data
     await seedDemoCredentials();
     await seedSampleData();
@@ -342,37 +346,39 @@ async function seedSampleData() {
 // Create exec_sql function if it doesn't exist
 async function createExecSqlFunction() {
   try {
+    // First try to execute a simple SQL statement to check if function exists
     const { error } = await supabase.rpc('exec_sql', {
       sql_commands: `SELECT 1`
     });
     
     // If function doesn't exist, create it
     if (error && error.message.includes('function exec_sql(text) does not exist')) {
-      const { error: createError } = await supabase.rpc('exec_sql', {
-        sql_commands: `
-          CREATE OR REPLACE FUNCTION public.exec_sql(sql_commands TEXT)
-          RETURNS VOID
-          LANGUAGE plpgsql
-          SECURITY DEFINER
-          AS $$
-          BEGIN
-            EXECUTE sql_commands;
-          END;
-          $$;
-          
-          GRANT EXECUTE ON FUNCTION public.exec_sql TO service_role;
-        `
-      });
+      // Use raw SQL execution to create the function
+      const { error: createError } = await supabase.sql(`
+        CREATE OR REPLACE FUNCTION public.exec_sql(sql_commands TEXT)
+        RETURNS VOID
+        LANGUAGE plpgsql
+        SECURITY DEFINER
+        AS $$
+        BEGIN
+          EXECUTE sql_commands;
+        END;
+        $$;
+        
+        GRANT EXECUTE ON FUNCTION public.exec_sql TO service_role;
+      `);
       
       if (createError) {
-        // If we can't create the function, we'll need another approach
-        console.log('Could not create exec_sql function. Will use direct table creation.');
+        console.error('Could not create exec_sql function:', createError);
         return false;
       }
       
       return true;
+    } else if (error) {
+      console.error('Error checking exec_sql function:', error);
+      return false;
     } else {
-      // Function already exists
+      // Function exists and works
       return true;
     }
   } catch (error) {

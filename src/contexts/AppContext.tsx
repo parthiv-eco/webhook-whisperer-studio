@@ -13,6 +13,38 @@ import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
 type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
 
+// Define types for database responses to fix TypeScript errors
+interface CategoryRow {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string | null;
+  created_at: string;
+}
+
+interface WebhookRow {
+  id: string;
+  name: string;
+  description: string | null;
+  url: string;
+  method: string;
+  category_id: string | null;
+  headers: any;
+  default_payload: string;
+  example_payloads: any;
+  created_at: string;
+}
+
+interface WebhookResponseRow {
+  id: string;
+  webhook_id: string;
+  status: number;
+  status_text: string;
+  headers: Record<string, any>;
+  data: any;
+  timestamp: string;
+}
+
 interface AppContextType {
   webhooks: Webhook[];
   categories: WebhookCategory[];
@@ -48,7 +80,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Fetch categories
       const { data: categoriesData, error: categoriesError } = await supabase
         .from("categories")
-        .select("*") as { data: any[] | null; error: Error | null };
+        .select("*") as { data: CategoryRow[] | null; error: Error | null };
 
       if (categoriesError) {
         throw categoriesError;
@@ -59,7 +91,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const formattedCategories: WebhookCategory[] = categoriesData.map(cat => ({
           id: cat.id,
           name: cat.name,
-          description: cat.description,
+          description: cat.description || '',
           color: cat.color || '#6E42CE',
           createdAt: cat.created_at
         }));
@@ -70,7 +102,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Fetch webhooks
       const { data: webhooksData, error: webhooksError } = await supabase
         .from("webhooks")
-        .select("*") as { data: any[] | null; error: Error | null };
+        .select("*") as { data: WebhookRow[] | null; error: Error | null };
 
       if (webhooksError) {
         throw webhooksError;
@@ -81,10 +113,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const formattedWebhooks: Webhook[] = webhooksData.map(hook => ({
           id: hook.id,
           name: hook.name,
-          description: hook.description,
+          description: hook.description || '',
           url: hook.url,
           method: hook.method as WebhookMethod,
-          categoryId: hook.category_id,
+          categoryId: hook.category_id || undefined,
           headers: Array.isArray(hook.headers) 
             ? hook.headers.map((header: any) => ({
                 key: header.key || '',
@@ -110,7 +142,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .from("webhook_responses")
         .select("*")
         .order("timestamp", { ascending: false })
-        .limit(10) as { data: any[] | null; error: Error | null };
+        .limit(10) as { data: WebhookResponseRow[] | null; error: Error | null };
 
       if (responsesError) {
         throw responsesError;
@@ -164,7 +196,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .from("webhooks")
         .insert([webhookData])
         .select("*")
-        .single() as { data: any | null; error: Error | null };
+        .single() as { data: WebhookRow | null; error: Error | null };
 
       if (error) {
         throw error;
@@ -178,10 +210,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const newWebhook: Webhook = {
         id: data.id,
         name: data.name,
-        description: data.description,
+        description: data.description || '',
         url: data.url,
         method: data.method as WebhookMethod,
-        categoryId: data.category_id,
+        categoryId: data.category_id || undefined,
         headers: Array.isArray(data.headers) 
           ? data.headers.map((header: any) => ({
               key: header.key || '',
@@ -276,7 +308,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .from("categories")
         .insert([categoryData])
         .select("*")
-        .single() as { data: any | null; error: Error | null };
+        .single() as { data: CategoryRow | null; error: Error | null };
 
       if (error) {
         throw error;
@@ -290,8 +322,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const newCategory: WebhookCategory = {
         id: data.id,
         name: data.name,
-        description: data.description,
-        color: data.color,
+        description: data.description || '',
+        color: data.color || '#6E42CE',
         createdAt: data.created_at
       };
 
