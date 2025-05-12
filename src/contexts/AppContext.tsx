@@ -5,6 +5,7 @@ import { WebhookCategory, Webhook, WebhookResponse, WebhookMethod, WebhookHeader
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { PostgrestError } from "@supabase/supabase-js";
 
 // Load environment variables from .env file
 import.meta.env.VITE_SUPABASE_URL;
@@ -78,9 +79,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const fetchData = async () => {
     try {
       // Fetch categories
-      const { data: categoriesData, error: categoriesError } = await supabase
-        .from("categories")
-        .select("*") as { data: CategoryRow[] | null; error: Error | null };
+      const { data: categoriesData, error: categoriesError } = await (supabase
+        .from("categories") as any)
+        .select("*") as { data: CategoryRow[] | null; error: PostgrestError | null };
 
       if (categoriesError) {
         throw categoriesError;
@@ -100,9 +101,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // Fetch webhooks
-      const { data: webhooksData, error: webhooksError } = await supabase
-        .from("webhooks")
-        .select("*") as { data: WebhookRow[] | null; error: Error | null };
+      const { data: webhooksData, error: webhooksError } = await (supabase
+        .from("webhooks") as any)
+        .select("*") as { data: WebhookRow[] | null; error: PostgrestError | null };
 
       if (webhooksError) {
         throw webhooksError;
@@ -110,39 +111,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Map webhooks to our app's format
       if (webhooksData) {
-        const formattedWebhooks: Webhook[] = webhooksData.map(hook => ({
-          id: hook.id,
-          name: hook.name,
-          description: hook.description || '',
-          url: hook.url,
-          method: hook.method as WebhookMethod,
-          categoryId: hook.category_id || undefined,
-          headers: Array.isArray(hook.headers) 
-            ? hook.headers.map((header: any) => ({
-                key: header.key || '',
-                value: header.value || '',
-                enabled: header.enabled !== false
-              }))
-            : [],
-          defaultPayload: hook.default_payload || '',
-          examplePayloads: Array.isArray(hook.example_payloads) 
-            ? hook.example_payloads.map((payload: any) => ({
-                name: payload.name || '',
-                payload: payload.payload || ''
-              }))
-            : [],
-          createdAt: hook.created_at
-        }));
+        const formattedWebhooks: Webhook[] = webhooksData.map(hook => {
+          let parsedHeaders: WebhookHeader[] = [];
+          try {
+            if (typeof hook.headers === 'string') {
+              parsedHeaders = JSON.parse(hook.headers);
+            } else if (Array.isArray(hook.headers)) {
+              parsedHeaders = hook.headers;
+            }
+          } catch (e) {
+            console.error("Error parsing headers:", e);
+          }
+          
+          let parsedExamplePayloads: Array<{ name: string; payload: string }> = [];
+          try {
+            if (typeof hook.example_payloads === 'string') {
+              parsedExamplePayloads = JSON.parse(hook.example_payloads);
+            } else if (Array.isArray(hook.example_payloads)) {
+              parsedExamplePayloads = hook.example_payloads;
+            }
+          } catch (e) {
+            console.error("Error parsing example payloads:", e);
+          }
+          
+          return {
+            id: hook.id,
+            name: hook.name,
+            description: hook.description || '',
+            url: hook.url,
+            method: hook.method as WebhookMethod,
+            categoryId: hook.category_id || '',
+            headers: parsedHeaders,
+            defaultPayload: hook.default_payload || '',
+            examplePayloads: parsedExamplePayloads,
+            createdAt: hook.created_at
+          };
+        });
 
         setWebhooks(formattedWebhooks);
       }
 
       // Fetch responses
-      const { data: responsesData, error: responsesError } = await supabase
-        .from("webhook_responses")
+      const { data: responsesData, error: responsesError } = await (supabase
+        .from("webhook_responses") as any)
         .select("*")
         .order("timestamp", { ascending: false })
-        .limit(10) as { data: WebhookResponseRow[] | null; error: Error | null };
+        .limit(10) as { data: WebhookResponseRow[] | null; error: PostgrestError | null };
 
       if (responsesError) {
         throw responsesError;
@@ -185,18 +199,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         description: webhook.description,
         url: webhook.url,
         method: webhook.method,
-        category_id: webhook.categoryId,
+        category_id: webhook.categoryId || null,
         headers: JSON.stringify(webhook.headers),
         default_payload: webhook.defaultPayload,
         example_payloads: JSON.stringify(webhook.examplePayloads)
       };
       
       // Insert webhook into Supabase
-      const { data, error } = await supabase
-        .from("webhooks")
+      const { data, error } = await (supabase
+        .from("webhooks") as any)
         .insert([webhookData])
         .select("*")
-        .single() as { data: WebhookRow | null; error: Error | null };
+        .single() as { data: WebhookRow | null; error: PostgrestError | null };
 
       if (error) {
         throw error;
@@ -206,6 +220,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         throw new Error("No data returned from insert operation");
       }
 
+      // Parse webhook data
+      let parsedHeaders: WebhookHeader[] = [];
+      try {
+        if (typeof data.headers === 'string') {
+          parsedHeaders = JSON.parse(data.headers);
+        } else if (Array.isArray(data.headers)) {
+          parsedHeaders = data.headers;
+        }
+      } catch (e) {
+        console.error("Error parsing headers:", e);
+      }
+      
+      let parsedExamplePayloads: Array<{ name: string; payload: string }> = [];
+      try {
+        if (typeof data.example_payloads === 'string') {
+          parsedExamplePayloads = JSON.parse(data.example_payloads);
+        } else if (Array.isArray(data.example_payloads)) {
+          parsedExamplePayloads = data.example_payloads;
+        }
+      } catch (e) {
+        console.error("Error parsing example payloads:", e);
+      }
+
       // Convert response to our app's format
       const newWebhook: Webhook = {
         id: data.id,
@@ -213,21 +250,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         description: data.description || '',
         url: data.url,
         method: data.method as WebhookMethod,
-        categoryId: data.category_id || undefined,
-        headers: Array.isArray(data.headers) 
-          ? data.headers.map((header: any) => ({
-              key: header.key || '',
-              value: header.value || '',
-              enabled: header.enabled !== false
-            }))
-          : [],
+        categoryId: data.category_id || '',
+        headers: parsedHeaders,
         defaultPayload: data.default_payload || '',
-        examplePayloads: Array.isArray(data.example_payloads) 
-          ? data.example_payloads.map((payload: any) => ({
-              name: payload.name || '',
-              payload: payload.payload || ''
-            }))
-          : [],
+        examplePayloads: parsedExamplePayloads,
         createdAt: data.created_at
       };
 
@@ -247,16 +273,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (webhook.description !== undefined) webhookData.description = webhook.description;
       if (webhook.url !== undefined) webhookData.url = webhook.url;
       if (webhook.method !== undefined) webhookData.method = webhook.method;
-      if (webhook.categoryId !== undefined) webhookData.category_id = webhook.categoryId;
+      if (webhook.categoryId !== undefined) webhookData.category_id = webhook.categoryId || null;
       if (webhook.headers !== undefined) webhookData.headers = JSON.stringify(webhook.headers);
       if (webhook.defaultPayload !== undefined) webhookData.default_payload = webhook.defaultPayload;
       if (webhook.examplePayloads !== undefined) webhookData.example_payloads = JSON.stringify(webhook.examplePayloads);
 
       // Update webhook in Supabase
-      const { error } = await supabase
-        .from("webhooks")
+      const { error } = await (supabase
+        .from("webhooks") as any)
         .update(webhookData)
-        .eq("id", id) as { error: Error | null };
+        .eq("id", id) as { error: PostgrestError | null };
 
       if (error) {
         throw error;
@@ -278,10 +304,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteWebhook = async (id: string): Promise<void> => {
     try {
-      const { error } = await supabase
-        .from("webhooks")
+      const { error } = await (supabase
+        .from("webhooks") as any)
         .delete()
-        .eq("id", id) as { error: Error | null };
+        .eq("id", id) as { error: PostgrestError | null };
 
       if (error) {
         throw error;
@@ -304,11 +330,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
       
       // Insert category into Supabase
-      const { data, error } = await supabase
-        .from("categories")
+      const { data, error } = await (supabase
+        .from("categories") as any)
         .insert([categoryData])
         .select("*")
-        .single() as { data: CategoryRow | null; error: Error | null };
+        .single() as { data: CategoryRow | null; error: PostgrestError | null };
 
       if (error) {
         throw error;
@@ -344,10 +370,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (category.color !== undefined) categoryData.color = category.color;
 
       // Update category in Supabase
-      const { error } = await supabase
-        .from("categories")
+      const { error } = await (supabase
+        .from("categories") as any)
         .update(categoryData)
-        .eq("id", id) as { error: Error | null };
+        .eq("id", id) as { error: PostgrestError | null };
 
       if (error) {
         throw error;
@@ -369,10 +395,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteCategory = async (id: string): Promise<void> => {
     try {
-      const { error } = await supabase
-        .from("categories")
+      const { error } = await (supabase
+        .from("categories") as any)
         .delete()
-        .eq("id", id) as { error: Error | null };
+        .eq("id", id) as { error: PostgrestError | null };
 
       if (error) {
         throw error;
@@ -450,8 +476,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
 
       // Save response in Supabase
-      const { error } = await supabase
-        .from('webhook_responses')
+      const { error } = await (supabase
+        .from('webhook_responses') as any)
         .insert([{
           id: responseId,
           webhook_id: webhookId,
@@ -460,7 +486,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           headers: responseHeaders,
           data: responseData,
           timestamp: new Date().toISOString()
-        }]) as { error: Error | null };
+        }]) as { error: PostgrestError | null };
 
       if (error) {
         console.error("Error saving webhook response:", error);
