@@ -4,26 +4,27 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
-import { WebhookMethod } from "@/types";
+import { Webhook as AppWebhook, WebhookCategory, WebhookMethod, WebhookResponse as AppWebhookResponse } from "@/types";
+import { mapDbWebhookToAppWebhook, mapDbCategoryToAppCategory, mapDbResponseToAppResponse, mapAppWebhookToDbWebhook } from "@/utils/typeMappers";
 
 // AppContext interface
 interface AppContextType {
-  categories: Category[];
-  webhooks: Webhook[];
+  categories: WebhookCategory[];
+  webhooks: AppWebhook[];
   loading: boolean;
-  createWebhook: (webhook: WebhookFormData) => Promise<string | null>;
-  updateWebhook: (id: string, webhook: WebhookFormData) => Promise<boolean>;
+  createWebhook: (webhook: Partial<AppWebhook>) => Promise<string | null>;
+  updateWebhook: (id: string, webhook: Partial<AppWebhook>) => Promise<boolean>;
   deleteWebhook: (id: string) => Promise<boolean>;
-  getWebhook: (id: string) => Promise<Webhook | null>;
-  executeWebhook: (id: string, payload?: string) => Promise<WebhookResponse | null>;
-  getWebhookResponses: (webhookId: string) => Promise<WebhookResponse[]>;
+  getWebhook: (id: string) => Promise<AppWebhook | null>;
+  executeWebhook: (id: string, payload?: string) => Promise<AppWebhookResponse | null>;
+  getWebhookResponses: (webhookId: string) => Promise<AppWebhookResponse[]>;
   createCategory: (category: CategoryFormData) => Promise<string | null>;
   updateCategory: (id: string, category: CategoryFormData) => Promise<boolean>;
   deleteCategory: (id: string) => Promise<boolean>;
   clearWebhookResponses: (webhookId: string) => Promise<boolean>;
 }
 
-// Data types
+// Data types from database
 export interface Category {
   id: string;
   name: string;
@@ -50,17 +51,6 @@ export interface Webhook {
   example_payloads: string;
   created_at: string;
   category?: Category;
-}
-
-export interface WebhookFormData {
-  name: string;
-  description?: string;
-  url: string;
-  method: WebhookMethod;
-  category_id?: string;
-  headers?: string;
-  default_payload?: string;
-  example_payloads?: string;
 }
 
 export interface WebhookResponse {
@@ -92,8 +82,8 @@ const AppContext = createContext<AppContextType>({
 
 // Provider component
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
+  const [categories, setCategories] = useState<WebhookCategory[]>([]);
+  const [webhooks, setWebhooks] = useState<AppWebhook[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -130,7 +120,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .order('name');
 
       if (error) throw error;
-      setCategories(data || []);
+      
+      const mappedCategories = (data || []).map(mapDbCategoryToAppCategory);
+      setCategories(mappedCategories);
     } catch (err) {
       console.error("Error fetching categories:", err);
       throw err;
@@ -145,33 +137,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (error) throw error;
 
-      // Parse string fields that contain JSON
-      const parsedData = data?.map((webhook) => ({
-        ...webhook,
-        category: webhook.category,
-      })) || [];
+      // Map database webhooks to application webhooks
+      const mappedWebhooks = (data || []).map((webhook) => {
+        return mapDbWebhookToAppWebhook({
+          ...webhook,
+          category: webhook.category
+        });
+      });
 
-      setWebhooks(parsedData);
+      setWebhooks(mappedWebhooks);
     } catch (err) {
       console.error("Error fetching webhooks:", err);
       throw err;
     }
   };
 
-  const createWebhook = async (webhook: WebhookFormData): Promise<string | null> => {
+  const createWebhook = async (webhook: Partial<AppWebhook>): Promise<string | null> => {
     try {
+      const dbWebhook = {
+        name: webhook.name || "",
+        description: webhook.description || null,
+        url: webhook.url || "",
+        method: webhook.method || "GET",
+        category_id: webhook.categoryId || null,
+        headers: JSON.stringify(webhook.headers || []),
+        default_payload: webhook.defaultPayload || "",
+        example_payloads: JSON.stringify(webhook.examplePayloads || []),
+      };
+
       const { data, error } = await supabase
         .from('webhooks')
-        .insert({
-          name: webhook.name,
-          description: webhook.description || null,
-          url: webhook.url,
-          method: webhook.method,
-          category_id: webhook.category_id || null,
-          headers: webhook.headers || '[]',
-          default_payload: webhook.default_payload || '',
-          example_payloads: webhook.example_payloads || '[]',
-        })
+        .insert(dbWebhook)
         .select('id')
         .single();
 
@@ -195,20 +191,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  const updateWebhook = async (id: string, webhook: WebhookFormData): Promise<boolean> => {
+  const updateWebhook = async (id: string, webhook: Partial<AppWebhook>): Promise<boolean> => {
     try {
+      const dbWebhook = {
+        name: webhook.name,
+        description: webhook.description || null,
+        url: webhook.url,
+        method: webhook.method,
+        category_id: webhook.categoryId || null,
+        headers: webhook.headers ? JSON.stringify(webhook.headers) : undefined,
+        default_payload: webhook.defaultPayload || "",
+        example_payloads: webhook.examplePayloads ? JSON.stringify(webhook.examplePayloads) : undefined,
+      };
+
       const { error } = await supabase
         .from('webhooks')
-        .update({
-          name: webhook.name,
-          description: webhook.description || null,
-          url: webhook.url,
-          method: webhook.method,
-          category_id: webhook.category_id || null,
-          headers: webhook.headers || '[]',
-          default_payload: webhook.default_payload || '',
-          example_payloads: webhook.example_payloads || '[]',
-        })
+        .update(dbWebhook)
         .eq('id', id);
 
       if (error) throw error;
@@ -261,7 +259,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  const getWebhook = async (id: string): Promise<Webhook | null> => {
+  const getWebhook = async (id: string): Promise<AppWebhook | null> => {
     try {
       const { data, error } = await supabase
         .from('webhooks')
@@ -271,7 +269,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (error) throw error;
       
-      return data as Webhook;
+      return mapDbWebhookToAppWebhook({
+        ...data,
+        category: data.category
+      });
     } catch (err) {
       console.error("Error fetching webhook:", err);
       toast({
@@ -283,7 +284,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  const executeWebhook = async (id: string, payload?: string): Promise<WebhookResponse | null> => {
+  const executeWebhook = async (id: string, payload?: string): Promise<AppWebhookResponse | null> => {
     try {
       // First get the webhook details
       const webhook = await getWebhook(id);
@@ -298,8 +299,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         body: JSON.stringify({
           url: webhook.url,
           method: webhook.method,
-          headers: JSON.parse(webhook.headers || '[]'),
-          payload: payload || webhook.default_payload,
+          headers: webhook.headers,
+          payload: payload || webhook.defaultPayload,
         }),
       });
 
@@ -326,7 +327,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         variant: responseData.status >= 200 && responseData.status < 300 ? "default" : "destructive",
       });
 
-      return data as WebhookResponse;
+      return mapDbResponseToAppResponse(data);
     } catch (err) {
       console.error("Error executing webhook:", err);
       toast({
@@ -338,7 +339,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  const getWebhookResponses = async (webhookId: string): Promise<WebhookResponse[]> => {
+  const getWebhookResponses = async (webhookId: string): Promise<AppWebhookResponse[]> => {
     try {
       const { data, error } = await supabase
         .from('webhook_responses')
@@ -348,7 +349,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (error) throw error;
       
-      return data as WebhookResponse[];
+      return (data || []).map(mapDbResponseToAppResponse);
     } catch (err) {
       console.error("Error fetching webhook responses:", err);
       toast({

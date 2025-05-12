@@ -7,16 +7,25 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   isAdmin: boolean; 
+  user: { id?: string; email?: string } | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType>({
+  isAuthenticated: false,
+  isLoading: true,
+  isAdmin: false,
+  user: null,
+  login: async () => {},
+  logout: async () => {},
+});
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [user, setUser] = useState<{ id?: string; email?: string } | null>(null);
 
   // Check if user is already logged in
   useEffect(() => {
@@ -38,6 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (data) {
               setIsAuthenticated(true);
               setIsAdmin(data.role === 'admin');
+              setUser({ email: sessionData.email });
               setIsLoading(false);
               return;
             } else {
@@ -56,6 +66,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session) {
           setIsAuthenticated(true);
+          setUser({
+            id: session.user.id,
+            email: session.user.email
+          });
           
           // Check if the user is an admin
           const { data: userData } = await supabase
@@ -82,12 +96,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           setIsAuthenticated(false);
           setIsAdmin(false);
+          setUser(null);
           localStorage.removeItem("demoSession");
         }
       } catch (error) {
         console.error("Auth check error:", error);
         setIsAuthenticated(false);
         setIsAdmin(false);
+        setUser(null);
         localStorage.removeItem("demoSession");
       } finally {
         setIsLoading(false);
@@ -102,27 +118,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (event === 'SIGNED_IN') {
         setIsAuthenticated(true);
         
-        if (session?.user.email) {
-          // Check if the user is a demo user and get their role
-          const { data } = await supabase
-            .from('demo_credentials')
-            .select('role')
-            .eq('email', session.user.email)
-            .single();
+        if (session?.user) {
+          setUser({
+            id: session.user.id,
+            email: session.user.email
+          });
           
-          if (data) {
-            setIsAdmin(data.role === 'admin');
-            localStorage.setItem("demoSession", JSON.stringify({
-              email: session.user.email,
-              timestamp: new Date().toISOString()
-            }));
-          } else {
-            setIsAdmin(false);
+          // Check if the user is a demo user and get their role
+          if (session.user.email) {
+            const { data } = await supabase
+              .from('demo_credentials')
+              .select('role')
+              .eq('email', session.user.email)
+              .single();
+            
+            if (data) {
+              setIsAdmin(data.role === 'admin');
+              localStorage.setItem("demoSession", JSON.stringify({
+                email: session.user.email,
+                timestamp: new Date().toISOString()
+              }));
+            } else {
+              setIsAdmin(false);
+            }
           }
         }
       } else if (event === 'SIGNED_OUT') {
         setIsAuthenticated(false);
         setIsAdmin(false);
+        setUser(null);
         localStorage.removeItem("demoSession");
       }
     });
@@ -158,6 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Set authenticated state
         setIsAuthenticated(true);
         setIsAdmin(data[0].user_role === 'admin');
+        setUser({ email });
         
         toast.success(`Logged in successfully as ${data[0].user_role}`);
         return;
@@ -171,6 +196,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (authResult.error) {
         throw authResult.error;
+      }
+
+      if (authResult.data.user) {
+        setUser({
+          id: authResult.data.user.id,
+          email: authResult.data.user.email
+        });
       }
       
       toast.success("Logged in successfully");
@@ -196,6 +228,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Update state AFTER Supabase signout (important for state consistency)
       setIsAuthenticated(false);
       setIsAdmin(false);
+      setUser(null);
       
       toast.success("Logged out successfully");
     } catch (error: any) {
@@ -210,6 +243,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAuthenticated,
     isLoading,
     isAdmin,
+    user,
     login,
     logout,
   };
