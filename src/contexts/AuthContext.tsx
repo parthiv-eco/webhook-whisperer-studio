@@ -12,6 +12,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
 }
 
+// Create context with default values
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   isLoading: true,
@@ -31,11 +32,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        console.log("Checking authentication state...");
         // Check for persisted demo session
         const demoSession = localStorage.getItem("demoSession");
         if (demoSession) {
           try {
             const sessionData = JSON.parse(demoSession);
+            console.log("Found demo session:", sessionData);
             
             // Validate the stored session by checking if the email exists in our db
             const { data } = await supabase
@@ -45,16 +48,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .single();
             
             if (data) {
+              console.log("Demo session validated, role:", data.role);
               setIsAuthenticated(true);
               setIsAdmin(data.role === 'admin');
               setUser({ email: sessionData.email });
               setIsLoading(false);
               return;
             } else {
+              console.log("Invalid email in demo session");
               // Invalid email in session, remove it
               localStorage.removeItem("demoSession");
             }
           } catch (e) {
+            console.error("Error parsing demo session:", e);
             // Invalid session data, remove it
             localStorage.removeItem("demoSession");
           }
@@ -65,6 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const session = data.session;
         
         if (session) {
+          console.log("Found Supabase session:", session.user.email);
           setIsAuthenticated(true);
           setUser({
             id: session.user.id,
@@ -79,6 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .single();
           
           setIsAdmin(userData?.role === 'admin');
+          console.log("User role:", userData?.role);
           
           // Store session if it matches a demo user
           const { data: demoUser } = await supabase
@@ -94,6 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }));
           }
         } else {
+          console.log("No active session found");
           setIsAuthenticated(false);
           setIsAdmin(false);
           setUser(null);
@@ -163,16 +172,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
+      console.log(`Attempting login for ${email}`);
       // Check demo credentials using our Supabase function
       const { data, error } = await supabase.rpc('check_demo_credentials', {
         p_email: email,
         p_password: password
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Demo credentials check error:", error);
+        throw error;
+      }
       
       // If credentials are valid (function returns a row)
       if (data && data.length > 0 && data[0].is_valid) {
+        console.log("Demo credentials valid:", data[0]);
         // Store demo session
         localStorage.setItem("demoSession", JSON.stringify({
           email,
@@ -189,15 +203,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       // If no demo credentials match, try regular Supabase auth
+      console.log("Trying Supabase auth...");
       const authResult = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (authResult.error) {
+        console.error("Supabase auth error:", authResult.error);
         throw authResult.error;
       }
 
+      console.log("Supabase auth successful");
       if (authResult.data.user) {
         setUser({
           id: authResult.data.user.id,
