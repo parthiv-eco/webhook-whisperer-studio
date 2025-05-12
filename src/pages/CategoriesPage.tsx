@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 
 const CategoriesPage = () => {
-  const { categories, addCategory } = useApp();
+  const { categories, createCategory } = useApp();
 
   useEffect(() => {
     document.title = "Categories | Webhook Manager";

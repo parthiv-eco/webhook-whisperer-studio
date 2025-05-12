@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
-import { Webhook } from "@/types";
+import { Webhook, WebhookResponse } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,51 +13,62 @@ import ResponseViewer from "@/components/ResponseViewer";
 
 const WebhookPage = () => {
   const { id } = useParams<{ id: string }>();
-  const { webhooks, executeWebhook, responses } = useApp();
-  const [webhook, setWebhook] = useState<Webhook | undefined>(undefined);
+  const { webhooks, executeWebhook, getWebhook, getWebhookResponses } = useApp();
+  const [webhook, setWebhook] = useState<Webhook | null>(null);
   const [editorContent, setEditorContent] = useState<string>("");
   const [isExecuting, setIsExecuting] = useState(false);
-  const [response, setResponse] = useState<any>(null);
+  const [response, setResponse] = useState<WebhookResponse | null>(null);
+  const [responses, setResponses] = useState<WebhookResponse[]>([]);
 
+  // Load webhook details
   useEffect(() => {
-    if (id) {
-      const foundWebhook = webhooks.find((webhook) => webhook.id === id);
-      setWebhook(foundWebhook);
-      setEditorContent(foundWebhook?.defaultPayload || "");
-    }
-  }, [id, webhooks]);
-
-  useEffect(() => {
-    if (webhook) {
-      setEditorContent(webhook.defaultPayload || "");
-    }
-  }, [webhook]);
-
-  // Get the most recent response for this webhook
-  useEffect(() => {
-    if (id) {
-      const webhookResponses = responses.filter(response => response.webhookId === id);
-      if (webhookResponses.length > 0) {
-        setResponse(webhookResponses[0]);
+    const loadWebhook = async () => {
+      if (id) {
+        try {
+          // Try to find webhook in local state first
+          const found = webhooks.find(w => w.id === id);
+          if (found) {
+            setWebhook(found);
+            setEditorContent(found.defaultPayload);
+          } else {
+            // Otherwise fetch from API
+            const data = await getWebhook(id);
+            if (data) {
+              setWebhook(data);
+              setEditorContent(data.defaultPayload);
+            }
+          }
+          
+          // Get responses
+          const webhookResponses = await getWebhookResponses(id);
+          setResponses(webhookResponses);
+          if (webhookResponses.length > 0) {
+            setResponse(webhookResponses[0]);
+          }
+        } catch (error) {
+          console.error("Error loading webhook:", error);
+          toast.error("Failed to load webhook details");
+        }
       }
-    }
-  }, [id, responses]);
+    };
+
+    loadWebhook();
+  }, [id, webhooks, getWebhook, getWebhookResponses]);
 
   if (!webhook) {
-    return <div>Webhook not found</div>;
+    return <div>Loading webhook details...</div>;
   }
 
   const handleExecute = async () => {
     if (webhook && id) {
       setIsExecuting(true);
       try {
-        await executeWebhook(id, editorContent);
-        toast.success("Webhook executed successfully");
-        
-        // Find the latest response for this webhook
-        const latestResponse = responses.find(response => response.webhookId === id);
-        if (latestResponse) {
-          setResponse(latestResponse);
+        const result = await executeWebhook(id, editorContent);
+        if (result) {
+          setResponse(result);
+          // Refresh responses list
+          const updatedResponses = await getWebhookResponses(id);
+          setResponses(updatedResponses);
         }
       } catch (error) {
         toast.error("Failed to execute webhook");

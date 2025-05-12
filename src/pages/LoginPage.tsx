@@ -22,21 +22,32 @@ const LoginPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("admin");
   
+  // Use a safer navigation approach that doesn't cause rendering issues
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate(isAdmin ? "/admin" : "/");
-      toast.success(`Logged in as ${isAdmin ? "Admin" : "User"}`);
+    // Only navigate if the user is authenticated and not in an initial loading state
+    if (isAuthenticated && !isLoading) {
+      const destination = isAdmin ? "/admin" : "/";
+      console.log(`User authenticated, redirecting to: ${destination}`);
+      
+      // Use a short timeout to ensure state is fully updated before navigation
+      const timer = setTimeout(() => {
+        navigate(destination);
+        toast.success(`Logged in as ${isAdmin ? "Admin" : "User"}`);
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
-  }, [isAuthenticated, isAdmin, navigate]);
+  }, [isAuthenticated, isAdmin, isLoading, navigate]);
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     try {
+      console.log(`Attempting login with ${activeTab} credentials`);
       const credentials = activeTab === "admin" 
         ? { email, password } 
         : { email: userEmail, password: userPassword };
-        
+      
       await login(credentials.email, credentials.password);
     } catch (error: any) {
       console.error("Login error:", error);

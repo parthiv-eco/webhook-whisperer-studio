@@ -1,200 +1,183 @@
- 
+
 import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
+import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
-
-// Get __dirname equivalent in ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Load environment variables
 dotenv.config();
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+// Get directory name (for ESM)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error('Error: Missing Supabase credentials in .env file');
-  console.error('Make sure you have VITE_SUPABASE_URL and VITE_SUPABASE_SERVICE_ROLE_KEY set');
+// Supabase configuration
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseAnonKey;
+
+// Check for required environment variables
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('❌ Supabase URL or anon key not found in environment variables.');
+  console.error('Please create a .env file with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
   process.exit(1);
 }
 
-// Create Supabase client with service role for admin privileges
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+// Initialize Supabase client
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-async function setupDatabase() {
-  console.log('🔧 Setting up Supabase database...');
-
+// Create a function to execute SQL files
+async function execSql(sqlFilePath) {
   try {
-    // First, create the necessary tables
-    await createTables();
+    const sqlContent = fs.readFileSync(sqlFilePath, 'utf8');
+    const { error } = await supabase.rpc('exec_sql', { sql: sqlContent });
     
-    // Then check if sample data needs to be inserted
-    await seedData();
-
-    console.log('✅ Supabase setup completed successfully!');
+    if (error) throw error;
+    return true;
   } catch (error) {
-    console.error('❌ Supabase setup failed:');
-    console.error(error.message || error);
-    process.exit(1);
+    console.error(`Error executing SQL from ${sqlFilePath}:`, error);
+    throw error;
   }
 }
 
+// Create tables using SQL file
 async function createTables() {
   try {
-    // Execute SQL from the setup-functions.sql file
-    const sqlFilePath = path.join(__dirname, 'setup-functions.sql');
+    const sqlFilePath = path.join(__dirname, 'setup-tables.sql');
+    
     if (!fs.existsSync(sqlFilePath)) {
-      throw new Error('SQL setup file not found: ' + sqlFilePath);
+      console.error(`❌ SQL file not found: ${sqlFilePath}`);
+      return false;
     }
     
-    const sqlCommands = fs.readFileSync(sqlFilePath, 'utf8');
-    const { error } = await supabase.sql(sqlCommands);
-    
-    if (error) {
-      throw error;
-    }
-    
-    console.log('✅ Database tables and functions created successfully');
+    await execSql(sqlFilePath);
+    return true;
   } catch (error) {
-    if (error.message?.includes('relation') && error.message?.includes('already exists')) {
-      console.log('✅ Database tables already exist');
-    } else {
-      console.error('Error creating database tables:', error);
-      throw error;
-    }
-  }
-}
-
-async function seedData() {
-  try {
-    // Check if demo credentials need to be seeded
-    const { data: credentialsData, error: credentialsError } = await supabase
-      .from('demo_credentials')
-      .select('*', { count: 'exact', head: true });
-      
-    if (credentialsError) {
-      throw new Error(`Error checking demo credentials: ${credentialsError.message}`);
-    }
-
-    if (!credentialsData || credentialsData.length === 0) {
-      console.log('Seeding demo credentials...');
-      await seedDemoCredentials();
-    } else {
-      console.log('✅ Demo credentials already exist');
-    }
-    
-    // Check if categories and webhooks need to be seeded
-    const { data: categoriesData, error: categoriesError } = await supabase
-      .from('categories')
-      .select('*', { count: 'exact', head: true });
-      
-    if (categoriesError) {
-      throw new Error(`Error checking categories: ${categoriesError.message}`);
-    }
-
-    if (!categoriesData || categoriesData.length === 0) {
-      console.log('Seeding sample data...');
-      await seedSampleData();
-    } else {
-      console.log('✅ Sample data already exists');
-    }
-  } catch (error) {
-    console.error('Error seeding data:', error.message || error);
+    console.error('Error creating database tables:', error);
     throw error;
   }
 }
 
+// Create functions using SQL file
+async function createFunctions() {
+  try {
+    const sqlFilePath = path.join(__dirname, 'setup-functions.sql');
+    
+    if (!fs.existsSync(sqlFilePath)) {
+      console.error(`❌ SQL file not found: ${sqlFilePath}`);
+      return false;
+    }
+    
+    await execSql(sqlFilePath);
+    return true;
+  } catch (error) {
+    console.error('Error creating database functions:', error);
+    throw error;
+  }
+}
+
+// Check if tables exist
+async function tablesExist() {
+  try {
+    const { data, error } = await supabase
+      .from('webhooks')
+      .select('id')
+      .limit(1);
+    
+    if (error && error.code !== 'PGRST116') {  // PGRST116 is "no results found" which is fine
+      console.log('Tables do not exist or cannot be accessed');
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.log('Error checking if tables exist:', error);
+    return false;
+  }
+}
+
+// Insert sample categories
+async function seedCategories() {
+  try {
+    const categories = [
+      { name: 'API Services', description: 'External API service webhooks', color: '#4f46e5' },
+      { name: 'Notifications', description: 'Notification and alert webhooks', color: '#10b981' },
+      { name: 'Payments', description: 'Payment processing webhooks', color: '#f59e0b' },
+      { name: 'Authentication', description: 'Authentication webhooks', color: '#ef4444' },
+    ];
+    
+    const { error } = await supabase
+      .from('categories')
+      .upsert(categories, { onConflict: 'name' });
+    
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error seeding sample categories:', error);
+    return false;
+  }
+}
+
+// Insert demo credentials
 async function seedDemoCredentials() {
   try {
+    const credentials = [
+      { email: 'admin@example.com', password: 'admin123', role: 'admin' },
+      { email: 'user@example.com', password: 'user123', role: 'user' },
+    ];
+    
     const { error } = await supabase
       .from('demo_credentials')
-      .insert([
-        { email: 'admin@example.com', password: 'admin123', role: 'admin' },
-        { email: 'user@example.com', password: 'user123', role: 'user' }
-      ]);
+      .upsert(credentials, { onConflict: 'email' });
     
-    if (error) {
-      throw error;
-    }
-    console.log('✅ Demo credentials seeded successfully');
+    if (error) throw error;
+    return true;
   } catch (error) {
-    console.error('Error seeding demo credentials:', error.message || error);
-    throw error;
+    console.error('Error seeding demo credentials:', error);
+    return false;
   }
 }
 
-async function seedSampleData() {
+// Setup database
+async function setupDatabase() {
+  console.log('🔧 Setting up Supabase database...');
+  
   try {
-    // Add sample categories
-    const { data: categories, error: categoryError } = await supabase
-      .from('categories')
-      .insert([
-        { name: 'API Testing', description: 'Webhooks for testing REST APIs', color: '#3B82F6' },
-        { name: 'Notifications', description: 'Webhooks for notification services', color: '#10B981' },
-        { name: 'Development', description: 'Development and debugging webhooks', color: '#8B5CF6' }
-      ])
-      .select('*');
+    // Check if tables exist first
+    const exist = await tablesExist();
     
-    if (categoryError) {
-      throw categoryError;
+    if (!exist) {
+      console.log('Creating database tables...');
+      await createTables();
+      console.log('Creating database functions...');
+      await createFunctions();
+      console.log('✅ Database structure created successfully');
+    } else {
+      console.log('✅ Database tables already exist');
     }
     
-    if (categories && categories.length > 0) {
-      // Add sample webhooks
-      const { error: webhookError } = await supabase
-        .from('webhooks')
-        .insert([
-          {
-            name: 'JSON Placeholder Test',
-            description: 'Test webhook to JSONPlaceholder API',
-            url: 'https://jsonplaceholder.typicode.com/posts',
-            method: 'POST',
-            category_id: categories[0].id,
-            headers: JSON.stringify([
-              { key: 'Content-Type', value: 'application/json', enabled: true }
-            ]),
-            default_payload: JSON.stringify({ title: 'Test Post', body: 'This is a test post', userId: 1 }, null, 2),
-            example_payloads: JSON.stringify([
-              { name: 'Basic Post', payload: JSON.stringify({ title: 'Basic Test', body: 'Simple test body', userId: 1 }, null, 2) },
-              { name: 'Advanced Post', payload: JSON.stringify({ title: 'Advanced Test', body: 'Detailed test description', userId: 2, tags: ['test', 'example'] }, null, 2) }
-            ])
-          },
-          {
-            name: 'Public Echo API',
-            description: 'Webhook to echo the request body',
-            url: 'https://postman-echo.com/post',
-            method: 'POST',
-            category_id: categories[2].id,
-            headers: JSON.stringify([
-              { key: 'Content-Type', value: 'application/json', enabled: true },
-              { key: 'X-Custom-Header', value: 'Custom Value', enabled: true }
-            ]),
-            default_payload: JSON.stringify({ message: 'Hello World!', timestamp: new Date().toISOString() }, null, 2)
-          },
-          {
-            name: 'Get Todo Item',
-            description: 'Retrieve a sample todo item',
-            url: 'https://jsonplaceholder.typicode.com/todos/1',
-            method: 'GET',
-            category_id: categories[0].id,
-            headers: JSON.stringify([]),
-            default_payload: ''
-          }
-        ]);
-      
-      if (webhookError) {
-        throw webhookError;
-      }
-      console.log('✅ Sample data seeded successfully');
-    }
+    // Seed data
+    console.log('Seeding demo credentials...');
+    const demoResult = await seedDemoCredentials();
+    if (!demoResult) console.log('Error seeding demo credentials: {}');
+    
+    console.log('Seeding sample data...');
+    const categoriesResult = await seedCategories();
+    if (!categoriesResult) console.log('Error seeding sample categories: {}');
+    
+    return true;
   } catch (error) {
-    console.error('Error seeding sample data:', error.message || error);
+    console.error('❌ Supabase setup failed:', error);
     throw error;
   }
 }
 
-// Start the setup process
-setupDatabase();
+// Run the setup
+try {
+  await setupDatabase();
+  console.log('✅ Supabase setup completed successfully!');
+} catch (error) {
+  console.error('❌ Supabase setup failed:', error.message);
+  process.exit(1);
+}
