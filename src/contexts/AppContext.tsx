@@ -1,6 +1,5 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
@@ -86,7 +85,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [webhooks, setWebhooks] = useState<AppWebhook[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const { toast } = useToast();
-  const navigate = useNavigate();
   const { user } = useAuth();
 
   // Fetch categories and webhooks on load
