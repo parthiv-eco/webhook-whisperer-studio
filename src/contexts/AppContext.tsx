@@ -81,7 +81,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Fetch categories
       const { data: categoriesData, error: categoriesError } = await (supabase
         .from("categories") as any)
-        .select("*") as { data: CategoryRow[] | null; error: PostgrestError | null };
+        .select("*");
 
       if (categoriesError) {
         throw categoriesError;
@@ -89,7 +89,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Map categories to our app's format
       if (categoriesData) {
-        const formattedCategories: WebhookCategory[] = categoriesData.map(cat => ({
+        const formattedCategories: WebhookCategory[] = (categoriesData as CategoryRow[]).map(cat => ({
           id: cat.id,
           name: cat.name,
           description: cat.description || '',
@@ -103,7 +103,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Fetch webhooks
       const { data: webhooksData, error: webhooksError } = await (supabase
         .from("webhooks") as any)
-        .select("*") as { data: WebhookRow[] | null; error: PostgrestError | null };
+        .select("*");
 
       if (webhooksError) {
         throw webhooksError;
@@ -111,7 +111,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Map webhooks to our app's format
       if (webhooksData) {
-        const formattedWebhooks: Webhook[] = webhooksData.map(hook => {
+        const formattedWebhooks: Webhook[] = (webhooksData as WebhookRow[]).map(hook => {
           let parsedHeaders: WebhookHeader[] = [];
           try {
             if (typeof hook.headers === 'string') {
@@ -156,7 +156,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .from("webhook_responses") as any)
         .select("*")
         .order("timestamp", { ascending: false })
-        .limit(10) as { data: WebhookResponseRow[] | null; error: PostgrestError | null };
+        .limit(10);
 
       if (responsesError) {
         throw responsesError;
@@ -164,7 +164,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Map responses to our app's format - fixing the type issues
       if (responsesData) {
-        const formattedResponses: WebhookResponse[] = responsesData.map(response => {
+        const formattedResponses: WebhookResponse[] = (responsesData as WebhookResponseRow[]).map(response => {
           // Convert headers to Record<string, string> format
           const stringHeaders: Record<string, string> = {};
           if (typeof response.headers === 'object' && response.headers !== null) {
@@ -210,7 +210,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .from("webhooks") as any)
         .insert([webhookData])
         .select("*")
-        .single() as { data: WebhookRow | null; error: PostgrestError | null };
+        .single();
 
       if (error) {
         throw error;
@@ -282,7 +282,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { error } = await (supabase
         .from("webhooks") as any)
         .update(webhookData)
-        .eq("id", id) as { error: PostgrestError | null };
+        .eq("id", id);
 
       if (error) {
         throw error;
@@ -307,7 +307,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { error } = await (supabase
         .from("webhooks") as any)
         .delete()
-        .eq("id", id) as { error: PostgrestError | null };
+        .eq("id", id);
 
       if (error) {
         throw error;
@@ -334,7 +334,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .from("categories") as any)
         .insert([categoryData])
         .select("*")
-        .single() as { data: CategoryRow | null; error: PostgrestError | null };
+        .single();
 
       if (error) {
         throw error;
@@ -373,7 +373,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { error } = await (supabase
         .from("categories") as any)
         .update(categoryData)
-        .eq("id", id) as { error: PostgrestError | null };
+        .eq("id", id);
 
       if (error) {
         throw error;
@@ -398,7 +398,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { error } = await (supabase
         .from("categories") as any)
         .delete()
-        .eq("id", id) as { error: PostgrestError | null };
+        .eq("id", id);
 
       if (error) {
         throw error;
@@ -486,7 +486,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           headers: responseHeaders,
           data: responseData,
           timestamp: new Date().toISOString()
-        }]) as { error: PostgrestError | null };
+        }]);
 
       if (error) {
         console.error("Error saving webhook response:", error);
