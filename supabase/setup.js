@@ -52,7 +52,39 @@ async function createTables() {
     }
     
     const sqlCommands = fs.readFileSync(sqlFilePath, 'utf8');
-    const { error } = await supabase.sql(sqlCommands);
+    
+    // Use the exec_sql function to execute the SQL commands
+    // First check if the function exists
+    const { data: functionExists, error: functionCheckError } = await supabase
+      .from('pg_proc')
+      .select('*')
+      .eq('proname', 'exec_sql')
+      .maybeSingle();
+      
+    if (functionCheckError) {
+      console.log('Creating exec_sql function first...');
+      // Create the exec_sql function
+      const { error: createFunctionError } = await supabase.rpc('exec_sql', {
+        sql_commands: `
+        CREATE OR REPLACE FUNCTION public.exec_sql(sql_commands TEXT)
+        RETURNS VOID
+        LANGUAGE plpgsql
+        SECURITY DEFINER
+        AS $$
+        BEGIN
+          EXECUTE sql_commands;
+        END;
+        $$;
+
+        GRANT EXECUTE ON FUNCTION public.exec_sql TO service_role;
+        `
+      });
+      
+      if (createFunctionError) throw createFunctionError;
+    }
+    
+    // Now execute the SQL commands using exec_sql
+    const { error } = await supabase.rpc('exec_sql', { sql_commands: sqlCommands });
     
     if (error) {
       throw error;
@@ -77,10 +109,12 @@ async function seedData() {
       .select('*', { count: 'exact', head: true });
       
     if (credentialsError) {
-      throw new Error(`Error checking demo credentials: ${credentialsError.message}`);
-    }
-
-    if (!credentialsData || credentialsData.length === 0) {
+      if (credentialsError.code === '42P01') { // Table doesn't exist
+        console.log('Demo credentials table does not exist yet, skipping seeding...');
+      } else {
+        throw new Error(`Error checking demo credentials: ${credentialsError.message}`);
+      }
+    } else if (!credentialsData || credentialsData.length === 0) {
       console.log('Seeding demo credentials...');
       await seedDemoCredentials();
     } else {
@@ -93,10 +127,12 @@ async function seedData() {
       .select('*', { count: 'exact', head: true });
       
     if (categoriesError) {
-      throw new Error(`Error checking categories: ${categoriesError.message}`);
-    }
-
-    if (!categoriesData || categoriesData.length === 0) {
+      if (categoriesError.code === '42P01') { // Table doesn't exist
+        console.log('Categories table does not exist yet, skipping seeding...');
+      } else {
+        throw new Error(`Error checking categories: ${categoriesError.message}`);
+      }
+    } else if (!categoriesData || categoriesData.length === 0) {
       console.log('Seeding sample data...');
       await seedSampleData();
     } else {
@@ -140,7 +176,7 @@ async function seedSampleData() {
       .select('*');
     
     if (categoryError) {
-      throw categoryError;
+      throw new Error(`Error seeding sample categories: ${categoryError.message}`);
     }
     
     if (categories && categories.length > 0) {
@@ -187,12 +223,12 @@ async function seedSampleData() {
         ]);
       
       if (webhookError) {
-        throw webhookError;
+        throw new Error(`Error seeding sample webhooks: ${webhookError.message}`);
       }
       console.log('✅ Sample data seeded successfully');
     }
   } catch (error) {
-    console.error('Error seeding sample data:', error.message || error);
+    console.error('Error seeding sample data:', error);
     throw error;
   }
 }
