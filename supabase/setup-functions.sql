@@ -1,5 +1,5 @@
 
--- Create the exec_sql function if it doesn't exist yet
+-- Start with creating the exec_sql function if needed
 CREATE OR REPLACE FUNCTION public.exec_sql(sql_commands TEXT)
 RETURNS VOID
 LANGUAGE plpgsql
@@ -52,13 +52,13 @@ ALTER TABLE public.webhooks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.webhook_responses ENABLE ROW LEVEL SECURITY;
 
 -- For now, allow all authenticated users full access
-CREATE POLICY "Allow authenticated users full access to categories" 
+CREATE POLICY IF NOT EXISTS "Allow authenticated users full access to categories" 
 ON public.categories FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
-CREATE POLICY "Allow authenticated users full access to webhooks" 
+CREATE POLICY IF NOT EXISTS "Allow authenticated users full access to webhooks" 
 ON public.webhooks FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
-CREATE POLICY "Allow authenticated users full access to webhook_responses" 
+CREATE POLICY IF NOT EXISTS "Allow authenticated users full access to webhook_responses" 
 ON public.webhook_responses FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- Create a table to store demo credentials
@@ -71,18 +71,11 @@ CREATE TABLE IF NOT EXISTS public.demo_credentials (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- Insert the demo credentials
-INSERT INTO public.demo_credentials (email, password, role) 
-VALUES 
-  ('admin@example.com', 'admin123', 'admin'),
-  ('user@example.com', 'user123', 'user')
-ON CONFLICT (email) DO NOTHING;
-
 -- Add row level security policies
 ALTER TABLE public.demo_credentials ENABLE ROW LEVEL SECURITY;
 
 -- Create policy to allow admins to see all credentials
-CREATE POLICY "Admin users can read all demo credentials" 
+CREATE POLICY IF NOT EXISTS "Admin users can read all demo credentials" 
   ON public.demo_credentials 
   FOR SELECT 
   TO authenticated 

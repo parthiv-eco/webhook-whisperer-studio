@@ -5,7 +5,6 @@ import { WebhookCategory, Webhook, WebhookResponse, WebhookMethod, WebhookHeader
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { PostgrestError } from "@supabase/supabase-js";
 
 // Load environment variables from .env file
 import.meta.env.VITE_SUPABASE_URL;
@@ -81,7 +80,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Fetch categories
       const { data: categoriesData, error: categoriesError } = await (supabase
         .from("categories") as any)
-        .select("*");
+        .select("*") as any;
 
       if (categoriesError) {
         throw categoriesError;
@@ -103,7 +102,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Fetch webhooks
       const { data: webhooksData, error: webhooksError } = await (supabase
         .from("webhooks") as any)
-        .select("*");
+        .select("*") as any;
 
       if (webhooksError) {
         throw webhooksError;
@@ -156,7 +155,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .from("webhook_responses") as any)
         .select("*")
         .order("timestamp", { ascending: false })
-        .limit(10);
+        .limit(10) as any;
 
       if (responsesError) {
         throw responsesError;
@@ -210,7 +209,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .from("webhooks") as any)
         .insert([webhookData])
         .select("*")
-        .single();
+        .single() as any;
 
       if (error) {
         throw error;
@@ -282,7 +281,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { error } = await (supabase
         .from("webhooks") as any)
         .update(webhookData)
-        .eq("id", id);
+        .eq("id", id) as any;
 
       if (error) {
         throw error;
@@ -307,7 +306,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { error } = await (supabase
         .from("webhooks") as any)
         .delete()
-        .eq("id", id);
+        .eq("id", id) as any;
 
       if (error) {
         throw error;
@@ -334,7 +333,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .from("categories") as any)
         .insert([categoryData])
         .select("*")
-        .single();
+        .single() as any;
 
       if (error) {
         throw error;
@@ -373,7 +372,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { error } = await (supabase
         .from("categories") as any)
         .update(categoryData)
-        .eq("id", id);
+        .eq("id", id) as any;
 
       if (error) {
         throw error;
@@ -398,7 +397,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { error } = await (supabase
         .from("categories") as any)
         .delete()
-        .eq("id", id);
+        .eq("id", id) as any;
 
       if (error) {
         throw error;
@@ -486,7 +485,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           headers: responseHeaders,
           data: responseData,
           timestamp: new Date().toISOString()
-        }]);
+        }]) as any;
 
       if (error) {
         console.error("Error saving webhook response:", error);
