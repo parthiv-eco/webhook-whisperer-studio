@@ -51,7 +51,7 @@ const WebhookFormPage = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
-  const { categories, addWebhook, webhooks } = useApp();
+  const { categories, createWebhook, webhooks } = useApp();
   const [webhook, setWebhook] = useState(
     id ? webhooks.find((webhook) => webhook.id === id) : null
   );
@@ -101,7 +101,7 @@ const WebhookFormPage = () => {
         // toast.success("Webhook updated successfully!");
       } else {
         // Create new webhook - Ensure all required properties are provided
-        await addWebhook({
+        await createWebhook({
           name: values.name, // Required field
           description: values.description || "", // Provide default value if empty
           url: values.url, // Required field

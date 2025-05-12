@@ -28,7 +28,7 @@ const formSchema = z.object({
 const AdminWebhookForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { categories, addWebhook, webhooks } = useApp();
+  const { categories, createWebhook, webhooks } = useApp();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -67,7 +67,7 @@ const AdminWebhookForm = () => {
         toast.success("Webhook updated successfully!");
       } else {
         // Create new webhook with required properties
-        await addWebhook({
+        await createWebhook({
           name: values.name,  // Required property
           description: values.description || "", 
           url: values.url,  // Required property
