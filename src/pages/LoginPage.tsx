@@ -1,14 +1,14 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { User, Eye, EyeOff, ShieldIcon, UserIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const LoginPage = () => {
   const { login, isAuthenticated, isAdmin, isLoading } = useAuth();
@@ -21,7 +21,11 @@ const LoginPage = () => {
   const [showUserPassword, setShowUserPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("admin");
-  
+  const [rememberMe, setRememberMe] = useState(() => {
+    // Check if user had previously selected remember me
+    return localStorage.getItem("rememberMe") === "true";
+  });
+
   // Use a safer navigation approach that doesn't cause rendering issues
   useEffect(() => {
     // Only navigate if the user is authenticated and not in an initial loading state
@@ -48,7 +52,7 @@ const LoginPage = () => {
         ? { email, password } 
         : { email: userEmail, password: userPassword };
       
-      await login(credentials.email, credentials.password);
+      await login(credentials.email, credentials.password, rememberMe);
     } catch (error: any) {
       console.error("Login error:", error);
       setError(error?.message || "Login failed. Please check your credentials.");
@@ -120,7 +124,14 @@ const LoginPage = () => {
                     </Button>
                   </div>
                 </div>
-                
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="rememberMe"
+                    checked={rememberMe}
+                    onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                  />
+                  <Label htmlFor="rememberMe" className="text-sm">Remember me</Label>
+                </div>
                 <Button 
                   type="submit"
                   className="w-full mt-4" 
@@ -166,7 +177,14 @@ const LoginPage = () => {
                     </Button>
                   </div>
                 </div>
-                
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="rememberMeUser"
+                    checked={rememberMe}
+                    onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                  />
+                  <Label htmlFor="rememberMeUser" className="text-sm">Remember me</Label>
+                </div>
                 <Button 
                   type="submit"
                   className="w-full mt-4" 

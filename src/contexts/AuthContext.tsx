@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -8,7 +7,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAdmin: boolean; 
   user: { id?: string; email?: string } | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -22,23 +21,47 @@ const AuthContext = createContext<AuthContextType>({
   logout: async () => {},
 });
 
+// Session duration constants
+const SESSION_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
+const TEMP_SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [user, setUser] = useState<{ id?: string; email?: string } | null>(null);
 
+  // Check session validity
+  const isSessionValid = (timestamp: string, rememberMe: boolean): boolean => {
+    const sessionTime = new Date(timestamp).getTime();
+    const currentTime = new Date().getTime();
+    const duration = rememberMe ? SESSION_DURATION : TEMP_SESSION_DURATION;
+    return currentTime - sessionTime < duration;
+  };
+
   // Check if user is already logged in
   useEffect(() => {
     const checkAuth = async () => {
       try {
         console.log("Checking authentication state...");
+        
         // Check for persisted demo session
         const demoSession = localStorage.getItem("demoSession");
         if (demoSession) {
           try {
             const sessionData = JSON.parse(demoSession);
             console.log("Found demo session:", sessionData);
+            
+            // Check if session is still valid
+            if (!isSessionValid(sessionData.timestamp, sessionData.rememberMe)) {
+              console.log("Demo session expired");
+              localStorage.removeItem("demoSession");
+              setIsAuthenticated(false);
+              setIsAdmin(false);
+              setUser(null);
+              setIsLoading(false);
+              return;
+            }
             
             // Validate the stored session by checking if the email exists in our db
             const { data } = await supabase
@@ -52,16 +75,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setIsAuthenticated(true);
               setIsAdmin(data.role === 'admin');
               setUser({ email: sessionData.email });
-              setIsLoading(false);
-              return;
             } else {
               console.log("Invalid email in demo session");
-              // Invalid email in session, remove it
               localStorage.removeItem("demoSession");
+              setIsAuthenticated(false);
+              setIsAdmin(false);
+              setUser(null);
             }
           } catch (e) {
             console.error("Error parsing demo session:", e);
-            // Invalid session data, remove it
             localStorage.removeItem("demoSession");
           }
         }
@@ -77,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: session.user.id,
             email: session.user.email
           });
-          
+
           // Check if the user is an admin
           const { data: userData } = await supabase
             .from('demo_credentials')
@@ -87,26 +109,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           setIsAdmin(userData?.role === 'admin');
           console.log("User role:", userData?.role);
-          
-          // Store session if it matches a demo user
-          const { data: demoUser } = await supabase
-            .from('demo_credentials')
-            .select('email, role')
-            .eq('email', session.user.email)
-            .single();
-            
-          if (demoUser) {
-            localStorage.setItem("demoSession", JSON.stringify({
-              email: demoUser.email,
-              timestamp: new Date().toISOString()
-            }));
-          }
-        } else {
-          console.log("No active session found");
-          setIsAuthenticated(false);
-          setIsAdmin(false);
-          setUser(null);
-          localStorage.removeItem("demoSession");
         }
       } catch (error) {
         console.error("Auth check error:", error);
@@ -169,10 +171,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, rememberMe: boolean = false) => {
     setIsLoading(true);
     try {
       console.log(`Attempting login for ${email}`);
+      
       // Check demo credentials using our Supabase function
       const { data, error } = await supabase.rpc('check_demo_credentials', {
         p_email: email,
@@ -187,10 +190,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // If credentials are valid (function returns a row)
       if (data && data.length > 0 && data[0].is_valid) {
         console.log("Demo credentials valid:", data[0]);
-        // Store demo session
+        
+        // Store demo session with remember me preference
         localStorage.setItem("demoSession", JSON.stringify({
           email,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          rememberMe
         }));
 
         // Set authenticated state
@@ -202,7 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      // If no demo credentials match, try regular Supabase auth
+      // If no demo credentials match, try regular Supabase auth with session duration
       console.log("Trying Supabase auth...");
       const authResult = await supabase.auth.signInWithPassword({
         email,
@@ -212,6 +217,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (authResult.error) {
         console.error("Supabase auth error:", authResult.error);
         throw authResult.error;
+      }
+
+      // Store the remember me preference in localStorage
+      if (rememberMe) {
+        localStorage.setItem("rememberMe", "true");
+      } else {
+        localStorage.removeItem("rememberMe");
       }
 
       console.log("Supabase auth successful");
